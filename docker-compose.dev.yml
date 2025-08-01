@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  # Override backend for development with hot reload
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./backend:/app
+      - /app/__pycache__
+      - /app/.venv
+    environment:
+      - ENVIRONMENT=development
+      - LOG_LEVEL=DEBUG
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Development-only services
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: netvexa-mailhog
+    ports:
+      - "1025:1025"  # SMTP server
+      - "8025:8025"  # Web UI
+    networks:
+      - netvexa-network
+    profiles:
+      - dev-tools

@@ -1,0 +1,92 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.env
+.venv
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Next.js
+.next/
+out/
+build/
+*.next
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Redis
+dump.rdb
+
+# Docker
+.docker/
+
+# Marketing site specific
+marketing-site/.env.local
+marketing-site/.next/
+marketing-site/out/
+marketing-site/node_modules/
+marketing-site/dev.log
+
+# Backend specific
+backend/venv/
+backend/.env
+backend/__pycache__/
+backend/*.pyc
+
+# WordPress plugin development
+wordpress-plugin/netvexa-chat/vendor/
+wordpress-plugin/netvexa-chat/node_modules/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Build artifacts
+dist/
+build/
+
+# Backup files
+*.bak
+*.backup
+
+# IDE project files
+.project
+.classpath
+.settings/
+
+# OS generated files
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Desktop.ini
