@@ -16,6 +16,7 @@ import AgentDetail from './pages/AgentDetail';
 import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
 import ApiKeys from './pages/ApiKeys';
+import Billing from './pages/Billing';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -84,6 +85,7 @@ function App() {
                 <Route path="/analytics" element={<Analytics />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/api-keys" element={<ApiKeys />} />
+                <Route path="/billing" element={<Billing />} />
               </Route>
             </Route>
             

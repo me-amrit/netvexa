@@ -1,6 +1,7 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel
 from typing import Dict, List, Optional
 import json
@@ -16,6 +17,8 @@ from websocket_manager import ConnectionManager
 from metrics import metrics_tracker, track_conversation_started, track_lead_captured
 from auth_routes import router as auth_router
 from agent_routes import router as agent_router
+from billing_routes import router as billing_router
+from billing_middleware import billing_middleware
 
 # Configure logging
 from logging_config import setup_logging
@@ -33,6 +36,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Add billing middleware
+app.add_middleware(BaseHTTPMiddleware, dispatch=billing_middleware)
+
 # Initialize connection manager
 manager = ConnectionManager()
 
@@ -42,6 +48,7 @@ rag_engine = RAGEngine()
 # Include routers
 app.include_router(auth_router)
 app.include_router(agent_router)
+app.include_router(billing_router)
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -90,6 +97,19 @@ async def websocket_endpoint(websocket: WebSocket, agent_id: str):
     visitor_id = f"visitor_{datetime.utcnow().timestamp()}"
     await track_conversation_started(agent_id, visitor_id)
     
+    # Get agent's user_id for billing
+    from database import get_db, Agent
+    from sqlalchemy import select
+    user_id = None
+    async for db in get_db():
+        result = await db.execute(
+            select(Agent).where(Agent.id == agent_id)
+        )
+        agent = result.scalar_one_or_none()
+        if agent:
+            user_id = agent.user_id
+        break
+    
     try:
         while True:
             # Receive message from client
@@ -104,8 +124,32 @@ async def websocket_endpoint(websocket: WebSocket, agent_id: str):
                 timestamp=datetime.now()
             )
             
+            # Check message limits if we have user_id
+            if user_id:
+                from billing_service import BillingService
+                async for db in get_db():
+                    can_send = await BillingService.check_usage_limits(
+                        user_id, "message", db
+                    )
+                    if not can_send:
+                        await websocket.send_json({
+                            "type": "error",
+                            "content": "Message limit reached. Please upgrade your subscription.",
+                            "timestamp": datetime.now().isoformat()
+                        })
+                        break
+                    break
+            
             # Process message through RAG engine
             response = await rag_engine.process_message(agent_id, chat_message)
+            
+            # Track message usage
+            if user_id:
+                async for db in get_db():
+                    await BillingService.track_usage(
+                        user_id, "message", 1, db
+                    )
+                    break
             
             # Send response back to client
             await websocket.send_json({

@@ -54,16 +54,16 @@ async def create_agent(
     user = auth_info["user"]
     
     async with async_session() as session:
-        # Check agent limit (5 agents per user for now)
-        existing_agents = await session.execute(
-            select(Agent).where(Agent.user_id == user.id)
+        # Check agent limit from billing service
+        from billing_service import BillingService
+        can_create = await BillingService.check_usage_limits(
+            user.id, "agent", session
         )
-        agent_count = len(existing_agents.scalars().all())
         
-        if agent_count >= 5:
+        if not can_create:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Maximum number of agents reached (5)"
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Agent limit reached for your subscription tier. Please upgrade to create more agents."
             )
         
         # Create new agent
@@ -87,6 +87,11 @@ async def create_agent(
             "agent_id": agent.id,
             "auth_type": auth_info["auth_type"]
         })
+        
+        # Track usage for billing
+        await BillingService.track_usage(
+            user.id, "agent_created", 1, session
+        )
         
         return AgentResponse(
             id=agent.id,

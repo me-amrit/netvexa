@@ -10,16 +10,19 @@ import {
   Cog6ToothIcon,
   ArrowRightOnRectangleIcon,
   UserCircleIcon,
-  ChartBarIcon
+  ChartBarIcon,
+  CreditCardIcon
 } from '@heroicons/react/24/outline';
 import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
+import UsageWarning from './UsageWarning';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
   { name: 'Agents', href: '/agents', icon: CpuChipIcon },
   { name: 'Analytics', href: '/analytics', icon: ChartBarIcon },
   { name: 'API Keys', href: '/api-keys', icon: KeyIcon },
+  { name: 'Billing', href: '/billing', icon: CreditCardIcon },
   { name: 'Settings', href: '/settings', icon: Cog6ToothIcon },
 ];
 
@@ -185,6 +188,7 @@ const Layout: React.FC = () => {
       </Disclosure>
 
       <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+        <UsageWarning />
         <Outlet />
       </main>
     </div>
