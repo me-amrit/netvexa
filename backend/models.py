@@ -25,6 +25,7 @@ class AgentConfig(BaseModel):
     id: str
     name: str
     personality: Dict[str, Any]
+    welcome_message: Optional[str] = "Hello! How can I help you today?"
     appearance: Optional[Dict[str, Any]] = None
     is_active: bool = True
 

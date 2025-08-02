@@ -1,8 +1,9 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import declarative_base, sessionmaker
-from sqlalchemy import Column, String, DateTime, JSON, Float, Integer, Text, ARRAY
+from sqlalchemy.orm import declarative_base, sessionmaker, relationship
+from sqlalchemy import Column, String, DateTime, JSON, Float, Integer, Text, ARRAY, Boolean, ForeignKey
 from pgvector.sqlalchemy import Vector
 from datetime import datetime
+import uuid
 import logging
 
 from config import settings
@@ -27,33 +28,77 @@ async_session = sessionmaker(
 Base = declarative_base()
 
 # Define database models
+class User(Base):
+    __tablename__ = "users"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    email = Column(String, unique=True, nullable=False, index=True)
+    hashed_password = Column(String, nullable=False)
+    company_name = Column(String, nullable=False)
+    is_active = Column(Boolean, default=True)
+    is_verified = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    agents = relationship("Agent", back_populates="user", cascade="all, delete-orphan")
+    api_keys = relationship("ApiKey", back_populates="user", cascade="all, delete-orphan")
+
+class ApiKey(Base):
+    __tablename__ = "api_keys"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    name = Column(String, nullable=False)
+    key = Column(String, unique=True, nullable=False, index=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    last_used_at = Column(DateTime, nullable=True)
+    
+    # Relationships
+    user = relationship("User", back_populates="api_keys")
+
 class Agent(Base):
     __tablename__ = "agents"
     
-    id = Column(String, primary_key=True)
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
     name = Column(String, nullable=False)
     config = Column(JSON, default={})
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    user = relationship("User", back_populates="agents")
+    conversations = relationship("Conversation", back_populates="agent", cascade="all, delete-orphan")
 
 class Conversation(Base):
     __tablename__ = "conversations"
     
-    id = Column(String, primary_key=True)
-    agent_id = Column(String, nullable=False)
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    agent_id = Column(String, ForeignKey("agents.id"), nullable=False)
+    visitor_id = Column(String, nullable=True)
+    lead_id = Column(String, nullable=True)
     started_at = Column(DateTime, default=datetime.utcnow)
     ended_at = Column(DateTime, nullable=True)
     meta_data = Column(JSON, default={})  # Renamed from metadata to avoid conflict
+    
+    # Relationships
+    agent = relationship("Agent", back_populates="conversations")
+    messages = relationship("Message", back_populates="conversation", cascade="all, delete-orphan")
 
 class Message(Base):
     __tablename__ = "messages"
     
     id = Column(Integer, primary_key=True, autoincrement=True)
-    conversation_id = Column(String, nullable=False)
+    conversation_id = Column(String, ForeignKey("conversations.id"), nullable=False)
     sender = Column(String, nullable=False)
     content = Column(Text, nullable=False)
     timestamp = Column(DateTime, default=datetime.utcnow)
     meta_data = Column(JSON, default={})  # Renamed from metadata to avoid conflict
+    
+    # Relationships
+    conversation = relationship("Conversation", back_populates="messages")
 
 class KnowledgeDocument(Base):
     __tablename__ = "knowledge_documents"

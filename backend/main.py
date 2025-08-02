@@ -14,10 +14,12 @@ from models import ChatMessage, ChatResponse, AgentConfig
 from database import init_db
 from websocket_manager import ConnectionManager
 from metrics import metrics_tracker, track_conversation_started, track_lead_captured
+from auth_routes import router as auth_router
+from agent_routes import router as agent_router
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from logging_config import setup_logging
+logger = setup_logging("netvexa-backend")
 
 # Initialize FastAPI app
 app = FastAPI(title="NETVEXA MVP", version="0.1.0")
@@ -36,6 +38,10 @@ manager = ConnectionManager()
 
 # Initialize RAG engine
 rag_engine = RAGEngine()
+
+# Include routers
+app.include_router(auth_router)
+app.include_router(agent_router)
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
