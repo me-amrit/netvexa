@@ -1,0 +1,1450 @@
+openapi: 3.0.3
+info:
+  title: NETVEXA API
+  description: |
+    NETVEXA is an AI-powered customer support platform that enables businesses to create intelligent chat agents.
+    
+    ## Authentication
+    
+    The API supports two authentication methods:
+    
+    1. **JWT Bearer Token** - For dashboard users
+    2. **API Key** - For programmatic access
+    
+    ### JWT Authentication
+    ```
+    Authorization: Bearer <jwt_token>
+    ```
+    
+    ### API Key Authentication
+    ```
+    X-API-Key: <api_key>
+    ```
+    
+    ## Rate Limiting
+    
+    Rate limits vary by subscription tier:
+    - Starter: 100 requests/hour
+    - Growth: 1,000 requests/hour
+    - Professional: 5,000 requests/hour
+    - Business: Unlimited
+    
+    ## Webhooks
+    
+    Configure webhooks to receive real-time updates for:
+    - New conversations
+    - Lead captures
+    - Agent training completion
+    
+  version: 1.0.0
+  contact:
+    email: support@netvexa.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.netvexa.com/api
+    description: Production server
+  - url: http://localhost:8000/api
+    description: Development server
+
+security:
+  - bearerAuth: []
+  - apiKeyAuth: []
+
+tags:
+  - name: Authentication
+    description: User authentication and registration
+  - name: Agents
+    description: AI agent management
+  - name: Knowledge
+    description: Document and knowledge base management
+  - name: Conversations
+    description: Chat conversations and messages
+  - name: Analytics
+    description: Usage analytics and insights
+  - name: Billing
+    description: Subscription and billing management
+  - name: Webhooks
+    description: Webhook configuration
+
+paths:
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+                - name
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: user@example.com
+                password:
+                  type: string
+                  format: password
+                  minLength: 8
+                  example: SecurePass123!
+                name:
+                  type: string
+                  example: John Doe
+                company_name:
+                  type: string
+                  example: Acme Corp
+      responses:
+        201:
+          description: User successfully registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        400:
+          $ref: '#/components/responses/BadRequest'
+        409:
+          description: User already exists
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Login user
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+      responses:
+        200:
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        401:
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh access token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refresh_token
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        200:
+          description: Token refreshed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+
+  /auth/profile:
+    get:
+      tags:
+        - Authentication
+      summary: Get current user profile
+      responses:
+        200:
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+    put:
+      tags:
+        - Authentication
+      summary: Update user profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                company_name:
+                  type: string
+                timezone:
+                  type: string
+                  example: America/New_York
+      responses:
+        200:
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /auth/api-keys:
+    get:
+      tags:
+        - Authentication
+      summary: List API keys
+      responses:
+        200:
+          description: List of API keys
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/APIKey'
+    post:
+      tags:
+        - Authentication
+      summary: Create new API key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - scopes
+              properties:
+                name:
+                  type: string
+                  example: Production API Key
+                scopes:
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                      - read:agents
+                      - write:agents
+                      - read:conversations
+                      - write:knowledge
+                expires_at:
+                  type: string
+                  format: date-time
+      responses:
+        201:
+          description: API key created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/APIKey'
+                  - type: object
+                    properties:
+                      key:
+                        type: string
+                        description: The actual API key (only shown once)
+
+  /auth/api-keys/{key_id}:
+    delete:
+      tags:
+        - Authentication
+      summary: Revoke API key
+      parameters:
+        - name: key_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        204:
+          description: API key revoked
+
+  /agents:
+    get:
+      tags:
+        - Agents
+      summary: List all agents
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+            maximum: 100
+      responses:
+        200:
+          description: List of agents
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  agents:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Agent'
+                  total:
+                    type: integer
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+    post:
+      tags:
+        - Agents
+      summary: Create new agent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - description
+              properties:
+                name:
+                  type: string
+                  example: Customer Support Bot
+                description:
+                  type: string
+                  example: Helps customers with product inquiries
+                prompt:
+                  type: string
+                  example: You are a helpful customer support agent...
+                model:
+                  type: string
+                  enum:
+                    - gpt-3.5-turbo
+                    - gpt-4
+                    - claude-3-haiku
+                    - claude-3-sonnet
+                    - gemini-1.5-flash
+                    - gemini-1.5-pro
+                  default: gpt-3.5-turbo
+                temperature:
+                  type: number
+                  minimum: 0
+                  maximum: 2
+                  default: 0.7
+                welcome_message:
+                  type: string
+                  example: Hello! How can I help you today?
+                suggested_questions:
+                  type: array
+                  items:
+                    type: string
+                  example:
+                    - What are your business hours?
+                    - How do I track my order?
+                    - What is your return policy?
+                collect_email:
+                  type: boolean
+                  default: true
+                brand_color:
+                  type: string
+                  pattern: '^#[0-9A-Fa-f]{6}$'
+                  default: '#000000'
+                position:
+                  type: string
+                  enum:
+                    - bottom-right
+                    - bottom-left
+                  default: bottom-right
+      responses:
+        201:
+          description: Agent created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
+        400:
+          $ref: '#/components/responses/BadRequest'
+        403:
+          description: Agent limit reached for subscription tier
+
+  /agents/{agent_id}:
+    get:
+      tags:
+        - Agents
+      summary: Get agent details
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Agent details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
+        404:
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Agents
+      summary: Update agent
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentUpdate'
+      responses:
+        200:
+          description: Agent updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
+    delete:
+      tags:
+        - Agents
+      summary: Delete agent
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        204:
+          description: Agent deleted
+
+  /agents/{agent_id}/deploy:
+    post:
+      tags:
+        - Agents
+      summary: Deploy agent
+      description: Generate embed code and make agent available for use
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Agent deployed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  embed_code:
+                    type: string
+                    example: <script src="https://cdn.netvexa.com/widget.js" data-agent-id="..."></script>
+                  widget_url:
+                    type: string
+                    example: https://cdn.netvexa.com/widget.js
+
+  /agents/{agent_id}/test-message:
+    post:
+      tags:
+        - Agents
+      summary: Test agent with a message
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: message
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Test response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  response:
+                    type: string
+                  confidence:
+                    type: number
+                  sources:
+                    type: array
+                    items:
+                      type: string
+
+  /agents/{agent_id}/conversations:
+    get:
+      tags:
+        - Conversations
+      summary: List agent conversations
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum:
+              - active
+              - resolved
+              - pending
+      responses:
+        200:
+          description: List of conversations
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  conversations:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Conversation'
+                  total:
+                    type: integer
+
+  /agents/{agent_id}/analytics:
+    get:
+      tags:
+        - Analytics
+      summary: Get agent analytics
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: start_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: timezone
+          in: query
+          schema:
+            type: string
+            default: UTC
+      responses:
+        200:
+          description: Analytics data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Analytics'
+
+  /knowledge/ingest/file:
+    post:
+      tags:
+        - Knowledge
+      summary: Upload document for agent training
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+                - agent_id
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Supported formats PDF, DOCX, TXT, MD, CSV
+                agent_id:
+                  type: string
+                title:
+                  type: string
+                metadata:
+                  type: object
+                  description: Additional metadata as JSON
+      responses:
+        201:
+          description: Document uploaded and processing started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+        400:
+          description: Invalid file format or size
+        413:
+          description: File too large (max 10MB)
+
+  /knowledge/ingest/url:
+    post:
+      tags:
+        - Knowledge
+      summary: Import content from URL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - url
+                - agent_id
+              properties:
+                url:
+                  type: string
+                  format: uri
+                agent_id:
+                  type: string
+                title:
+                  type: string
+                max_depth:
+                  type: integer
+                  default: 1
+                  description: How many links deep to crawl
+      responses:
+        201:
+          description: URL import started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportJob'
+
+  /knowledge/documents:
+    get:
+      tags:
+        - Knowledge
+      summary: List all documents
+      parameters:
+        - name: agent_id
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+      responses:
+        200:
+          description: List of documents
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  documents:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Document'
+                  total:
+                    type: integer
+
+  /knowledge/documents/{document_id}:
+    get:
+      tags:
+        - Knowledge
+      summary: Get document details
+      parameters:
+        - name: document_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Document details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+    delete:
+      tags:
+        - Knowledge
+      summary: Delete document
+      parameters:
+        - name: document_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        204:
+          description: Document deleted
+
+  /conversations/{conversation_id}:
+    get:
+      tags:
+        - Conversations
+      summary: Get conversation details
+      parameters:
+        - name: conversation_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Conversation details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationDetail'
+
+  /conversations/{conversation_id}/messages:
+    get:
+      tags:
+        - Conversations
+      summary: Get conversation messages
+      parameters:
+        - name: conversation_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+      responses:
+        200:
+          description: List of messages
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  messages:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Message'
+                  total:
+                    type: integer
+
+  /conversations/{conversation_id}/resolve:
+    post:
+      tags:
+        - Conversations
+      summary: Mark conversation as resolved
+      parameters:
+        - name: conversation_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                resolution_notes:
+                  type: string
+      responses:
+        200:
+          description: Conversation resolved
+
+  /billing/subscription:
+    get:
+      tags:
+        - Billing
+      summary: Get current subscription
+      responses:
+        200:
+          description: Subscription details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+
+  /billing/subscription/upgrade:
+    post:
+      tags:
+        - Billing
+      summary: Upgrade subscription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - tier
+                - payment_method_id
+              properties:
+                tier:
+                  type: string
+                  enum:
+                    - starter
+                    - growth
+                    - professional
+                    - business
+                payment_method_id:
+                  type: string
+                  description: Stripe payment method ID
+      responses:
+        200:
+          description: Subscription upgraded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subscription:
+                    $ref: '#/components/schemas/Subscription'
+                  client_secret:
+                    type: string
+                    description: For 3D Secure authentication if required
+
+  /billing/usage:
+    get:
+      tags:
+        - Billing
+      summary: Get usage statistics
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum:
+              - current
+              - previous
+            default: current
+      responses:
+        200:
+          description: Usage statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsageStats'
+
+  /webhooks:
+    get:
+      tags:
+        - Webhooks
+      summary: List webhook configurations
+      responses:
+        200:
+          description: List of webhooks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Webhook'
+    post:
+      tags:
+        - Webhooks
+      summary: Create webhook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - url
+                - events
+              properties:
+                url:
+                  type: string
+                  format: uri
+                events:
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                      - conversation.started
+                      - conversation.message
+                      - conversation.resolved
+                      - lead.captured
+                      - agent.trained
+                secret:
+                  type: string
+                  description: Secret for HMAC signature verification
+                active:
+                  type: boolean
+                  default: true
+      responses:
+        201:
+          description: Webhook created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+
+  /webhooks/{webhook_id}:
+    put:
+      tags:
+        - Webhooks
+      summary: Update webhook
+      parameters:
+        - name: webhook_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookUpdate'
+      responses:
+        200:
+          description: Webhook updated
+    delete:
+      tags:
+        - Webhooks
+      summary: Delete webhook
+      parameters:
+        - name: webhook_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        204:
+          description: Webhook deleted
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+  schemas:
+    AuthResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        token_type:
+          type: string
+          default: Bearer
+        expires_in:
+          type: integer
+          description: Token expiry in seconds
+        user:
+          $ref: '#/components/schemas/User'
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        company_name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        subscription:
+          type: object
+          properties:
+            tier:
+              type: string
+              enum:
+                - free
+                - starter
+                - growth
+                - professional
+                - business
+            status:
+              type: string
+
+    APIKey:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        scopes:
+          type: array
+          items:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+        last_used_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+
+    Agent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        prompt:
+          type: string
+        model:
+          type: string
+        temperature:
+          type: number
+        welcome_message:
+          type: string
+        suggested_questions:
+          type: array
+          items:
+            type: string
+        collect_email:
+          type: boolean
+        brand_color:
+          type: string
+        position:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        is_deployed:
+          type: boolean
+        stats:
+          type: object
+          properties:
+            total_conversations:
+              type: integer
+            total_messages:
+              type: integer
+            avg_response_time:
+              type: number
+            satisfaction_score:
+              type: number
+
+    AgentUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        prompt:
+          type: string
+        model:
+          type: string
+        temperature:
+          type: number
+        welcome_message:
+          type: string
+        suggested_questions:
+          type: array
+          items:
+            type: string
+        collect_email:
+          type: boolean
+        brand_color:
+          type: string
+        position:
+          type: string
+
+    Document:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        agent_id:
+          type: string
+        title:
+          type: string
+        filename:
+          type: string
+        content_type:
+          type: string
+        size_bytes:
+          type: integer
+        status:
+          type: string
+          enum:
+            - processing
+            - completed
+            - failed
+        chunk_count:
+          type: integer
+        metadata:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+        processed_at:
+          type: string
+          format: date-time
+        error_message:
+          type: string
+
+    ImportJob:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          enum:
+            - pending
+            - processing
+            - completed
+            - failed
+        url:
+          type: string
+        pages_processed:
+          type: integer
+        pages_total:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+
+    Conversation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        agent_id:
+          type: string
+        visitor_email:
+          type: string
+        status:
+          type: string
+          enum:
+            - active
+            - resolved
+            - pending
+        created_at:
+          type: string
+          format: date-time
+        last_message_at:
+          type: string
+          format: date-time
+        message_count:
+          type: integer
+        visitor_info:
+          type: object
+          properties:
+            ip_address:
+              type: string
+            user_agent:
+              type: string
+            location:
+              type: string
+            referrer:
+              type: string
+
+    ConversationDetail:
+      allOf:
+        - $ref: '#/components/schemas/Conversation'
+        - type: object
+          properties:
+            messages:
+              type: array
+              items:
+                $ref: '#/components/schemas/Message'
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        conversation_id:
+          type: string
+        content:
+          type: string
+        sender:
+          type: string
+          enum:
+            - visitor
+            - agent
+        timestamp:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+          properties:
+            confidence:
+              type: number
+            sources:
+              type: array
+              items:
+                type: string
+
+    Analytics:
+      type: object
+      properties:
+        period:
+          type: object
+          properties:
+            start:
+              type: string
+              format: date-time
+            end:
+              type: string
+              format: date-time
+        metrics:
+          type: object
+          properties:
+            total_conversations:
+              type: integer
+            unique_visitors:
+              type: integer
+            messages_sent:
+              type: integer
+            avg_response_time_seconds:
+              type: number
+            resolution_rate:
+              type: number
+            satisfaction_score:
+              type: number
+            leads_captured:
+              type: integer
+        conversations_by_day:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                format: date
+              count:
+                type: integer
+        peak_hours:
+          type: array
+          items:
+            type: object
+            properties:
+              hour:
+                type: integer
+              count:
+                type: integer
+        top_questions:
+          type: array
+          items:
+            type: object
+            properties:
+              question:
+                type: string
+              count:
+                type: integer
+
+    Subscription:
+      type: object
+      properties:
+        id:
+          type: string
+        tier:
+          type: string
+          enum:
+            - free
+            - starter
+            - growth
+            - professional
+            - business
+        status:
+          type: string
+          enum:
+            - active
+            - canceled
+            - past_due
+        current_period_start:
+          type: string
+          format: date-time
+        current_period_end:
+          type: string
+          format: date-time
+        cancel_at_period_end:
+          type: boolean
+        payment_method:
+          type: object
+          properties:
+            type:
+              type: string
+            last4:
+              type: string
+            brand:
+              type: string
+
+    UsageStats:
+      type: object
+      properties:
+        period:
+          type: string
+        usage:
+          type: object
+          properties:
+            messages:
+              type: integer
+            api_calls:
+              type: integer
+            agents:
+              type: integer
+            documents:
+              type: integer
+        limits:
+          type: object
+          properties:
+            messages:
+              type: integer
+            api_calls:
+              type: integer
+            agents:
+              type: integer
+
+    Webhook:
+      type: object
+      properties:
+        id:
+          type: string
+        url:
+          type: string
+          format: uri
+        events:
+          type: array
+          items:
+            type: string
+        secret:
+          type: string
+        active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        last_triggered_at:
+          type: string
+          format: date-time
+        failure_count:
+          type: integer
+
+    WebhookUpdate:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+        events:
+          type: array
+          items:
+            type: string
+        active:
+          type: boolean
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+              details:
+                type: object
+
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                default: Unauthorized
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                default: Not found
+
+    ServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+              request_id:
+                type: string
