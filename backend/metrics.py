@@ -217,6 +217,159 @@ class MetricsTracker:
             "revenue_metrics": results[4],
             "generated_at": datetime.utcnow().isoformat()
         }
+    
+    async def get_conversation_trends(self, days: int = 7) -> Dict[str, Any]:
+        """Get conversation trends over specified period."""
+        async with async_session() as session:
+            end_date = datetime.utcnow()
+            start_date = end_date - timedelta(days=days)
+            
+            # Get daily conversation counts
+            daily_conversations = await session.execute(
+                select(
+                    func.date(Conversation.started_at).label('date'),
+                    func.count(Conversation.id).label('count'),
+                    func.count(func.distinct(Conversation.agent_id)).label('active_agents')
+                )
+                .where(Conversation.started_at >= start_date)
+                .group_by(func.date(Conversation.started_at))
+                .order_by(func.date(Conversation.started_at))
+            )
+            
+            # Get message counts per day
+            daily_messages = await session.execute(
+                select(
+                    func.date(Message.timestamp).label('date'),
+                    func.count(Message.id).label('message_count')
+                )
+                .join(Conversation, Message.conversation_id == Conversation.id)
+                .where(Message.timestamp >= start_date)
+                .group_by(func.date(Message.timestamp))
+                .order_by(func.date(Message.timestamp))
+            )
+            
+            # Format data for charts
+            trends = []
+            conversations_dict = {str(date): count for date, count, _ in daily_conversations}
+            messages_dict = {str(date): count for date, count in daily_messages}
+            
+            for i in range(days):
+                date = (start_date + timedelta(days=i)).strftime('%Y-%m-%d')
+                trends.append({
+                    'date': date,
+                    'conversations': conversations_dict.get(date, 0),
+                    'messages': messages_dict.get(date, 0)
+                })
+            
+            return {
+                'trends': trends,
+                'total_conversations': sum(t['conversations'] for t in trends),
+                'total_messages': sum(t['messages'] for t in trends),
+                'period_days': days
+            }
+    
+    async def get_agent_performance(self, agent_id: str, days: int = 30) -> Dict[str, Any]:
+        """Get detailed performance metrics for a specific agent."""
+        async with async_session() as session:
+            end_date = datetime.utcnow()
+            start_date = end_date - timedelta(days=days)
+            
+            # Get agent info
+            agent = await session.get(Agent, agent_id)
+            if not agent:
+                return {"error": "Agent not found"}
+            
+            # Get conversation metrics
+            conversations = await session.execute(
+                select(
+                    func.count(Conversation.id).label('total_conversations'),
+                    func.count(func.distinct(Conversation.visitor_id)).label('unique_visitors')
+                )
+                .where(
+                    and_(
+                        Conversation.agent_id == agent_id,
+                        Conversation.started_at >= start_date
+                    )
+                )
+            )
+            conv_metrics = conversations.first()
+            
+            # Get message metrics
+            messages = await session.execute(
+                select(
+                    func.count(Message.id).label('total_messages'),
+                    func.count(Message.id).filter(Message.sender == 'user').label('user_messages'),
+                    func.count(Message.id).filter(Message.sender == 'agent').label('agent_messages')
+                )
+                .join(Conversation, Message.conversation_id == Conversation.id)
+                .where(
+                    and_(
+                        Conversation.agent_id == agent_id,
+                        Message.timestamp >= start_date
+                    )
+                )
+            )
+            msg_metrics = messages.first()
+            
+            return {
+                'agent_id': agent_id,
+                'agent_name': agent.name,
+                'period_days': days,
+                'conversations': {
+                    'total': conv_metrics.total_conversations or 0,
+                    'unique_visitors': conv_metrics.unique_visitors or 0
+                },
+                'messages': {
+                    'total': msg_metrics.total_messages or 0,
+                    'from_users': msg_metrics.user_messages or 0,
+                    'from_agent': msg_metrics.agent_messages or 0,
+                    'response_ratio': (msg_metrics.agent_messages or 0) / max(msg_metrics.user_messages or 1, 1)
+                },
+                'engagement': {
+                    'avg_messages_per_conversation': (msg_metrics.total_messages or 0) / max(conv_metrics.total_conversations or 1, 1),
+                    'conversations_per_day': (conv_metrics.total_conversations or 0) / days
+                }
+            }
+    
+    async def get_engagement_patterns(self) -> Dict[str, Any]:
+        """Get user engagement patterns and peak usage times."""
+        async with async_session() as session:
+            # Get hourly patterns (last 30 days)
+            hourly_patterns = await session.execute(
+                select(
+                    func.extract('hour', Conversation.started_at).label('hour'),
+                    func.count(Conversation.id).label('conversations')
+                )
+                .where(Conversation.started_at >= datetime.utcnow() - timedelta(days=30))
+                .group_by(func.extract('hour', Conversation.started_at))
+                .order_by(func.extract('hour', Conversation.started_at))
+            )
+            
+            # Get daily patterns (last 30 days)
+            daily_patterns = await session.execute(
+                select(
+                    func.extract('dow', Conversation.started_at).label('day_of_week'),
+                    func.count(Conversation.id).label('conversations')
+                )
+                .where(Conversation.started_at >= datetime.utcnow() - timedelta(days=30))
+                .group_by(func.extract('dow', Conversation.started_at))
+                .order_by(func.extract('dow', Conversation.started_at))
+            )
+            
+            hourly_data = [{'hour': int(hour), 'conversations': count} for hour, count in hourly_patterns]
+            daily_data = [{'day': int(day), 'conversations': count} for day, count in daily_patterns]
+            
+            # Map day numbers to names
+            day_names = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+            for item in daily_data:
+                item['day_name'] = day_names[item['day']]
+            
+            return {
+                'hourly_patterns': hourly_data,
+                'daily_patterns': daily_data,
+                'peak_hour': max(hourly_data, key=lambda x: x['conversations'])['hour'] if hourly_data else 12,
+                'peak_day': max(daily_data, key=lambda x: x['conversations'])['day_name'] if daily_data else 'Monday'
+            }
 
 
 # Global metrics tracker instance

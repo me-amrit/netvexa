@@ -14,7 +14,7 @@ import {
   Filler
 } from 'chart.js';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
-import { metricsApi } from '../services/api';
+import { metricsApi, type ConversationTrends, type EngagementPatterns, type DashboardMetrics } from '../services/api';
 
 ChartJS.register(
   CategoryScale,
@@ -41,6 +41,24 @@ const Analytics: React.FC = () => {
     refetchInterval: 60000, // Refresh every minute
   });
 
+  const { data: conversationTrends } = useQuery({
+    queryKey: ['conversation-trends'],
+    queryFn: async () => {
+      const response = await metricsApi.getConversationTrends(7);
+      return response.data;
+    },
+    refetchInterval: 60000,
+  });
+
+  const { data: engagementPatterns } = useQuery({
+    queryKey: ['engagement-patterns'],
+    queryFn: async () => {
+      const response = await metricsApi.getEngagementPatterns();
+      return response.data;
+    },
+    refetchInterval: 60000,
+  });
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -49,33 +67,22 @@ const Analytics: React.FC = () => {
     );
   }
 
-  // Mock data for charts - in production, this would come from the API
-  const conversationTrend = [
-    { name: 'Mon', conversations: 45, resolved: 40 },
-    { name: 'Tue', conversations: 52, resolved: 48 },
-    { name: 'Wed', conversations: 48, resolved: 45 },
-    { name: 'Thu', conversations: 70, resolved: 65 },
-    { name: 'Fri', conversations: 85, resolved: 80 },
-    { name: 'Sat', conversations: 65, resolved: 60 },
-    { name: 'Sun', conversations: 40, resolved: 38 },
-  ];
+  // Transform real data for charts
+  const conversationTrendData = conversationTrends?.trends?.map((trend) => ({
+    name: new Date(trend.date).toLocaleDateString('en-US', { weekday: 'short' }),
+    conversations: trend.conversations,
+    messages: trend.messages,
+  })) || [];
 
-  const responseTimeData = [
-    { hour: '00:00', time: 2.4 },
-    { hour: '04:00', time: 2.1 },
-    { hour: '08:00', time: 3.2 },
-    { hour: '12:00', time: 4.5 },
-    { hour: '16:00', time: 3.8 },
-    { hour: '20:00', time: 2.9 },
-  ];
+  const hourlyEngagementData = engagementPatterns?.hourly_patterns?.slice(0, 12).map((pattern) => ({
+    hour: `${pattern.hour.toString().padStart(2, '0')}:00`,
+    conversations: pattern.conversations,
+  })) || [];
 
-  const leadSourceData = [
-    { name: 'Direct Chat', value: 35 },
-    { name: 'Contact Form', value: 25 },
-    { name: 'Product Inquiry', value: 20 },
-    { name: 'Support Request', value: 15 },
-    { name: 'Other', value: 5 },
-  ];
+  const dailyEngagementData = engagementPatterns?.daily_patterns?.map((pattern) => ({
+    name: pattern.day_name.substring(0, 3),
+    value: pattern.conversations,
+  })) || [];
 
   const agentPerformance = metrics?.weekly_active_agents.agents.map(agent => ({
     name: agent.agent_name.split(' ').slice(0, 2).join(' '),
@@ -104,8 +111,8 @@ const Analytics: React.FC = () => {
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Avg Response Time</dt>
-                  <dd className="text-lg font-semibold text-gray-900">3.2s</dd>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Total Conversations</dt>
+                  <dd className="text-lg font-semibold text-gray-900">{conversationTrends?.total_conversations || 0}</dd>
                 </dl>
               </div>
             </div>
@@ -122,8 +129,8 @@ const Analytics: React.FC = () => {
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Resolution Rate</dt>
-                  <dd className="text-lg font-semibold text-gray-900">94.5%</dd>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Total Messages</dt>
+                  <dd className="text-lg font-semibold text-gray-900">{conversationTrends?.total_messages || 0}</dd>
                 </dl>
               </div>
             </div>
@@ -140,8 +147,8 @@ const Analytics: React.FC = () => {
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Satisfaction Score</dt>
-                  <dd className="text-lg font-semibold text-gray-900">4.8/5.0</dd>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Peak Hour</dt>
+                  <dd className="text-lg font-semibold text-gray-900">{engagementPatterns?.peak_hour ? `${engagementPatterns.peak_hour}:00` : '--'}</dd>
                 </dl>
               </div>
             </div>
@@ -158,8 +165,8 @@ const Analytics: React.FC = () => {
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Leads Captured</dt>
-                  <dd className="text-lg font-semibold text-gray-900">237</dd>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Active Agents</dt>
+                  <dd className="text-lg font-semibold text-gray-900">{metrics?.weekly_active_agents?.active_agent_count || 0}</dd>
                 </dl>
               </div>
             </div>
@@ -175,19 +182,19 @@ const Analytics: React.FC = () => {
           <div className="h-[300px]">
             <Line
               data={{
-                labels: conversationTrend.map(d => d.name),
+                labels: conversationTrendData.map((d) => d.name),
                 datasets: [
                   {
-                    label: 'Total Conversations',
-                    data: conversationTrend.map(d => d.conversations),
+                    label: 'Conversations',
+                    data: conversationTrendData.map((d) => d.conversations),
                     borderColor: '#6366f1',
                     backgroundColor: 'rgba(99, 102, 241, 0.1)',
                     fill: true,
                     tension: 0.4,
                   },
                   {
-                    label: 'Resolved',
-                    data: conversationTrend.map(d => d.resolved),
+                    label: 'Messages',
+                    data: conversationTrendData.map((d) => d.messages),
                     borderColor: '#10b981',
                     backgroundColor: 'rgba(16, 185, 129, 0.1)',
                     fill: true,
@@ -213,17 +220,17 @@ const Analytics: React.FC = () => {
           </div>
         </div>
 
-        {/* Response Time */}
+        {/* Hourly Engagement */}
         <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-base font-semibold text-gray-900 mb-4">Average Response Time</h3>
+          <h3 className="text-base font-semibold text-gray-900 mb-4">Hourly Engagement Patterns</h3>
           <div className="h-[300px]">
             <Line
               data={{
-                labels: responseTimeData.map(d => d.hour),
+                labels: hourlyEngagementData.map((d) => d.hour),
                 datasets: [
                   {
-                    label: 'Response Time (s)',
-                    data: responseTimeData.map(d => d.time),
+                    label: 'Conversations per Hour',
+                    data: hourlyEngagementData.map((d) => d.conversations),
                     borderColor: '#8b5cf6',
                     backgroundColor: 'rgba(139, 92, 246, 0.1)',
                     tension: 0.4,
@@ -248,16 +255,16 @@ const Analytics: React.FC = () => {
           </div>
         </div>
 
-        {/* Lead Sources */}
+        {/* Daily Engagement */}
         <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-base font-semibold text-gray-900 mb-4">Lead Sources</h3>
+          <h3 className="text-base font-semibold text-gray-900 mb-4">Daily Engagement Distribution</h3>
           <div className="h-[300px]">
             <Doughnut
               data={{
-                labels: leadSourceData.map(d => d.name),
+                labels: dailyEngagementData.map((d) => d.name),
                 datasets: [
                   {
-                    data: leadSourceData.map(d => d.value),
+                    data: dailyEngagementData.map((d) => d.value),
                     backgroundColor: COLORS,
                     borderColor: COLORS.map(color => color),
                     borderWidth: 1,
@@ -283,17 +290,17 @@ const Analytics: React.FC = () => {
           <div className="h-[300px]">
             <Bar
               data={{
-                labels: agentPerformance.map(d => d.name),
+                labels: agentPerformance.map((d) => d.name),
                 datasets: [
                   {
                     label: 'Conversations',
-                    data: agentPerformance.map(d => d.conversations),
+                    data: agentPerformance.map((d) => d.conversations),
                     backgroundColor: '#6366f1',
                     yAxisID: 'y',
                   },
                   {
                     label: 'Satisfaction %',
-                    data: agentPerformance.map(d => d.satisfaction),
+                    data: agentPerformance.map((d) => d.satisfaction),
                     backgroundColor: '#10b981',
                     yAxisID: 'y1',
                   },

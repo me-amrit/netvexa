@@ -297,6 +297,36 @@ async def get_revenue_metrics():
         logger.error(f"Error fetching revenue metrics: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch metrics")
 
+@app.get("/api/metrics/conversations/trends")
+async def get_conversation_trends(days: int = 7):
+    """Get conversation trends over specified days"""
+    try:
+        trends = await metrics_tracker.get_conversation_trends(days)
+        return trends
+    except Exception as e:
+        logger.error(f"Error fetching conversation trends: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch trends")
+
+@app.get("/api/metrics/agents/{agent_id}/performance")
+async def get_agent_performance(agent_id: str, days: int = 30):
+    """Get detailed performance metrics for a specific agent"""
+    try:
+        performance = await metrics_tracker.get_agent_performance(agent_id, days)
+        return performance
+    except Exception as e:
+        logger.error(f"Error fetching agent performance: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch performance")
+
+@app.get("/api/metrics/engagement/patterns")
+async def get_engagement_patterns():
+    """Get user engagement patterns and peak usage times"""
+    try:
+        patterns = await metrics_tracker.get_engagement_patterns()
+        return patterns
+    except Exception as e:
+        logger.error(f"Error fetching engagement patterns: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch patterns")
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host=settings.HOST, port=settings.PORT, reload=True)

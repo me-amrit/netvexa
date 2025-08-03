@@ -92,6 +92,31 @@ export interface DashboardMetrics {
   };
 }
 
+export interface ConversationTrends {
+  trends: Array<{
+    date: string;
+    conversations: number;
+    messages: number;
+  }>;
+  total_conversations: number;
+  total_messages: number;
+  period_days: number;
+}
+
+export interface EngagementPatterns {
+  hourly_patterns: Array<{
+    hour: number;
+    conversations: number;
+  }>;
+  daily_patterns: Array<{
+    day: number;
+    day_name: string;
+    conversations: number;
+  }>;
+  peak_hour: number;
+  peak_day: string;
+}
+
 // Agent API
 export const agentApi = {
   list: () => axios.get<Agent[]>('/api/agents/'),
@@ -161,6 +186,15 @@ export const metricsApi = {
   
   getConversationQuality: (conversationId: string) => 
     axios.get(`/api/metrics/conversations/${conversationId}/quality`),
+  
+  getConversationTrends: (days: number = 7) => 
+    axios.get<ConversationTrends>(`/api/metrics/conversations/trends?days=${days}`),
+  
+  getAgentPerformance: (agentId: string, days: number = 30) => 
+    axios.get(`/api/metrics/agents/${agentId}/performance?days=${days}`),
+  
+  getEngagementPatterns: () => 
+    axios.get<EngagementPatterns>('/api/metrics/engagement/patterns'),
 };
 
 // User API
