@@ -271,8 +271,8 @@ class BillingService:
     async def track_usage(
         user_id: str,
         usage_type: str,
-        amount: int = 1,
-        db: AsyncSession
+        db: AsyncSession,
+        amount: int = 1
     ) -> None:
         """Track usage for a user"""
         try:
@@ -363,12 +363,7 @@ class BillingService:
                     # Count active agents
                     from database import Agent
                     agent_count = await db.execute(
-                        select(Agent).where(
-                            and_(
-                                Agent.user_id == user_id,
-                                Agent.is_active == True
-                            )
-                        )
+                        select(Agent).where(Agent.user_id == user_id)
                     )
                     agent_count = len(agent_count.scalars().all())
                     return agent_count < subscription.agent_limit
@@ -381,12 +376,7 @@ class BillingService:
                     # Still has agent limit
                     from database import Agent
                     agent_count = await db.execute(
-                        select(Agent).where(
-                            and_(
-                                Agent.user_id == user_id,
-                                Agent.is_active == True
-                            )
-                        )
+                        select(Agent).where(Agent.user_id == user_id)
                     )
                     agent_count = len(agent_count.scalars().all())
                     return agent_count < subscription.agent_limit
@@ -417,12 +407,7 @@ class BillingService:
                 elif usage_type == "agent":
                     from database import Agent
                     agent_count = await db.execute(
-                        select(Agent).where(
-                            and_(
-                                Agent.user_id == user_id,
-                                Agent.is_active == True
-                            )
-                        )
+                        select(Agent).where(Agent.user_id == user_id)
                     )
                     agent_count = len(agent_count.scalars().all())
                     return agent_count < subscription.agent_limit
@@ -467,12 +452,7 @@ class BillingService:
             # Count active agents
             from database import Agent
             agent_count = await db.execute(
-                select(Agent).where(
-                    and_(
-                        Agent.user_id == user_id,
-                        Agent.is_active == True
-                    )
-                )
+                select(Agent).where(Agent.user_id == user_id)
             )
             agent_count = len(agent_count.scalars().all())
             

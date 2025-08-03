@@ -7,10 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import logging
 import time
 from typing import Callable
+from jose import jwt
 
 from database import get_db
 from billing_service import BillingService
-from auth import get_current_user_optional
 
 logger = logging.getLogger(__name__)
 
@@ -51,12 +51,17 @@ async def billing_middleware(request: Request, call_next: Callable):
         # Get user from request
         user = None
         if "authorization" in request.headers:
-            from auth import oauth2_scheme
-            token = await oauth2_scheme(request)
-            if token:
-                async for db in get_db():
-                    user = await get_current_user_optional(token, db)
-                    break
+            from auth import SECRET_KEY, ALGORITHM
+            auth_header = request.headers.get("authorization")
+            if auth_header and auth_header.startswith("Bearer "):
+                token = auth_header.split(" ")[1]
+                try:
+                    payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+                    user_id = payload.get("sub")
+                    if user_id:
+                        user = {"id": user_id}
+                except:
+                    pass
         
         # If no user, allow request (public endpoints)
         if not user:
@@ -88,13 +93,13 @@ async def billing_middleware(request: Request, call_next: Callable):
         if endpoint_pattern in BILLABLE_ENDPOINTS and response.status_code < 400:
             async for db in get_db():
                 await BillingService.track_usage(
-                    user["id"], "api_call", 1, db
+                    user["id"], "api_call", db, 1
                 )
                 
                 # For chat endpoints, also track messages
                 if "chat" in endpoint_pattern or "message" in endpoint_pattern:
                     await BillingService.track_usage(
-                        user["id"], "message", 1, db
+                        user["id"], "message", db, 1
                     )
                 break
         

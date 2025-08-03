@@ -312,6 +312,95 @@ async def get_agent_config(agent_id: str):
         )
 
 
+@router.get("/{agent_id}/documents")
+async def get_agent_documents(
+    agent_id: str,
+    auth_info: dict = Depends(get_current_user_or_api_key)
+):
+    """Get all documents for an agent"""
+    user = auth_info["user"]
+    
+    async with async_session() as session:
+        # Verify agent ownership
+        result = await session.execute(
+            select(Agent).where(
+                and_(Agent.id == agent_id, Agent.user_id == user.id)
+            )
+        )
+        agent = result.scalar_one_or_none()
+        
+        if not agent:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Agent not found"
+            )
+        
+        # Get documents
+        result = await session.execute(
+            select(KnowledgeDocument)
+            .where(KnowledgeDocument.agent_id == agent_id)
+            .order_by(KnowledgeDocument.created_at.desc())
+        )
+        documents = result.scalars().all()
+        
+        # Format response
+        return [
+            {
+                "id": doc.id,
+                "name": doc.title or f"Document {doc.id[:8]}",
+                "size": len(doc.content.encode('utf-8')) if doc.content else 0,
+                "uploaded_at": doc.created_at.isoformat() if doc.created_at else None
+            }
+            for doc in documents
+        ]
+
+
+@router.get("/{agent_id}/conversations")
+async def get_agent_conversations(
+    agent_id: str,
+    auth_info: dict = Depends(get_current_user_or_api_key)
+):
+    """Get all conversations for an agent"""
+    user = auth_info["user"]
+    
+    async with async_session() as session:
+        # Verify agent ownership
+        result = await session.execute(
+            select(Agent).where(
+                and_(Agent.id == agent_id, Agent.user_id == user.id)
+            )
+        )
+        agent = result.scalar_one_or_none()
+        
+        if not agent:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Agent not found"
+            )
+        
+        # Get conversations
+        result = await session.execute(
+            select(Conversation)
+            .where(Conversation.agent_id == agent_id)
+            .order_by(Conversation.started_at.desc())
+        )
+        conversations = result.scalars().all()
+        
+        # Format response
+        return [
+            {
+                "id": conv.id,
+                "agent_id": conv.agent_id,
+                "started_at": conv.started_at.isoformat() if conv.started_at else None,
+                "ended_at": conv.ended_at.isoformat() if conv.ended_at else None,
+                "message_count": 0,  # TODO: Add message count
+                "lead_captured": False,  # TODO: Implement lead capture
+                "metadata": conv.meta_data or {}
+            }
+            for conv in conversations
+        ]
+
+
 @router.post("/{agent_id}/test-message")
 async def test_agent_message(
     agent_id: str,
@@ -337,25 +426,31 @@ async def test_agent_message(
             )
     
     # Import RAG engine here to avoid circular import
-    from rag_engine import RAGEngine
-    rag_engine = RAGEngine()
+    from rag.production_rag_engine import ProductionRAGEngine
+    rag_engine = ProductionRAGEngine()
     
     # Process the test message
     try:
-        # Check if agent has any knowledge documents
-        response_context = await rag_engine.get_relevant_context(message, agent_id)
-        
-        # Generate response
-        response = await rag_engine.generate_response(
-            message=message,
-            context=response_context,
-            agent_config=agent.config
+        # Create a ChatMessage object
+        from models import ChatMessage
+        chat_message = ChatMessage(
+            content=message,
+            conversation_id="test-conversation",
+            sender="user"
         )
         
+        # Generate response using RAG
+        chat_response = await rag_engine.generate_response(
+            message=chat_message,
+            agent_id=agent_id,
+            conversation_history=None
+        )
+        
+        response = chat_response.content
+        
+        # Return just the response for compatibility with frontend
         return {
-            "message": message,
-            "response": response,
-            "context_used": bool(response_context)
+            "response": response
         }
         
     except Exception as e:

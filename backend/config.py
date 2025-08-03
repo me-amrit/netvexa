@@ -6,6 +6,7 @@ class LLMProvider(str, Enum):
     ANTHROPIC = "anthropic"
     GOOGLE = "google"
     OPENAI = "openai"
+    MOCK = "mock"
 
 class EmbeddingProvider(str, Enum):
     GOOGLE = "google"

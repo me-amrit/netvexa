@@ -248,6 +248,10 @@ class LLMProviderFactory:
                 raise ValueError("OpenAI API key not provided")
             return OpenAIProvider(api_key, model)
             
+        elif provider_type == LLMProvider.MOCK:
+            from test_llm_provider import MockLLMProvider
+            return MockLLMProvider()
+            
         else:
             raise ValueError(f"Unknown provider type: {provider_type}")
     
@@ -262,6 +266,8 @@ class LLMProviderFactory:
             available.append(LLMProvider.GOOGLE)
         if settings.OPENAI_API_KEY:
             available.append(LLMProvider.OPENAI)
+        # Mock provider is always available
+        available.append(LLMProvider.MOCK)
             
         return available
 

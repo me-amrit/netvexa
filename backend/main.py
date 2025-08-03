@@ -10,7 +10,7 @@ from datetime import datetime
 import logging
 
 from config import settings
-from rag_engine import RAGEngine
+from rag import ProductionRAGEngine
 from models import ChatMessage, ChatResponse, AgentConfig
 from database import init_db
 from websocket_manager import ConnectionManager
@@ -18,6 +18,7 @@ from metrics import metrics_tracker, track_conversation_started, track_lead_capt
 from auth_routes import router as auth_router
 from agent_routes import router as agent_router
 from billing_routes import router as billing_router
+from knowledge_routes import router as knowledge_router
 from billing_middleware import billing_middleware
 
 # Configure logging
@@ -43,12 +44,13 @@ app.add_middleware(BaseHTTPMiddleware, dispatch=billing_middleware)
 manager = ConnectionManager()
 
 # Initialize RAG engine
-rag_engine = RAGEngine()
+rag_engine = ProductionRAGEngine()
 
 # Include routers
 app.include_router(auth_router)
 app.include_router(agent_router)
 app.include_router(billing_router)
+app.include_router(knowledge_router)
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -63,30 +65,6 @@ async def startup_event():
 async def root():
     """Health check endpoint"""
     return {"status": "healthy", "service": "NETVEXA MVP", "version": "0.1.0"}
-
-@app.post("/api/knowledge/ingest-url")
-async def ingest_url(url: str):
-    """Ingest content from a URL"""
-    try:
-        result = await rag_engine.ingest_url(url)
-        return {"status": "processing", "job_id": result["job_id"]}
-    except Exception as e:
-        logger.error(f"Error ingesting URL: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-class IngestTextRequest(BaseModel):
-    text: str
-    metadata: Optional[Dict] = None
-
-@app.post("/api/knowledge/ingest-text")
-async def ingest_text(request: IngestTextRequest):
-    """Ingest raw text content"""
-    try:
-        result = await rag_engine.ingest_text(request.text, request.metadata)
-        return {"status": "success", "documents_created": result["documents_created"]}
-    except Exception as e:
-        logger.error(f"Error ingesting text: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
 
 @app.websocket("/ws/{agent_id}")
 async def websocket_endpoint(websocket: WebSocket, agent_id: str):
@@ -140,8 +118,17 @@ async def websocket_endpoint(websocket: WebSocket, agent_id: str):
                         break
                     break
             
-            # Process message through RAG engine
-            response = await rag_engine.process_message(agent_id, chat_message)
+            # Get conversation history
+            conversation_history = await rag_engine.get_conversation_history(
+                agent_id, chat_message.conversation_id
+            )
+            
+            # Process message through production RAG engine
+            response = await rag_engine.generate_response(
+                message=chat_message,
+                agent_id=agent_id,
+                conversation_history=conversation_history
+            )
             
             # Track message usage
             if user_id:
@@ -169,7 +156,17 @@ async def websocket_endpoint(websocket: WebSocket, agent_id: str):
 async def send_message(agent_id: str, message: ChatMessage):
     """REST endpoint for sending chat messages (fallback for non-WebSocket clients)"""
     try:
-        response = await rag_engine.process_message(agent_id, message)
+        # Get conversation history
+        conversation_history = await rag_engine.get_conversation_history(
+            agent_id, message.conversation_id
+        )
+        
+        # Process message through production RAG engine
+        response = await rag_engine.generate_response(
+            message=message,
+            agent_id=agent_id,
+            conversation_history=conversation_history
+        )
         return response
     except Exception as e:
         logger.error(f"Error processing message: {e}")

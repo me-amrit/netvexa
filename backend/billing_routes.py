@@ -8,7 +8,7 @@ from pydantic import BaseModel
 import logging
 import os
 
-from database import get_db
+from database import get_db, User
 from auth import get_current_user
 from billing_service import BillingService, PRICING_TIERS
 from billing_models import SubscriptionTier
@@ -53,12 +53,12 @@ async def get_pricing_tiers():
 
 @router.get("/subscription")
 async def get_subscription(
-    current_user: Dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """Get current user's subscription details"""
     try:
-        stats = await BillingService.get_usage_stats(current_user["id"], db)
+        stats = await BillingService.get_usage_stats(current_user.id, db)
         return stats
     except Exception as e:
         logger.error(f"Error fetching subscription: {e}")
@@ -68,13 +68,13 @@ async def get_subscription(
 @router.post("/subscription")
 async def create_or_update_subscription(
     request: CreateSubscriptionRequest,
-    current_user: Dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """Create or update a subscription"""
     try:
         result = await BillingService.create_subscription(
-            user_id=current_user["id"],
+            user_id=current_user.id,
             tier=request.tier,
             payment_method_id=request.payment_method_id,
             db=db
@@ -89,12 +89,12 @@ async def create_or_update_subscription(
 
 @router.delete("/subscription")
 async def cancel_subscription(
-    current_user: Dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """Cancel the current subscription"""
     try:
-        success = await BillingService.cancel_subscription(current_user["id"], db)
+        success = await BillingService.cancel_subscription(current_user.id, db)
         if success:
             return {"message": "Subscription will be canceled at the end of the billing period"}
         else:
@@ -106,12 +106,12 @@ async def cancel_subscription(
 
 @router.get("/usage")
 async def get_usage_stats(
-    current_user: Dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """Get detailed usage statistics for the current billing period"""
     try:
-        stats = await BillingService.get_usage_stats(current_user["id"], db)
+        stats = await BillingService.get_usage_stats(current_user.id, db)
         return stats
     except Exception as e:
         logger.error(f"Error fetching usage stats: {e}")
@@ -120,7 +120,7 @@ async def get_usage_stats(
 
 @router.get("/payment-methods")
 async def get_payment_methods(
-    current_user: Dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """Get user's saved payment methods from Stripe"""
@@ -130,7 +130,7 @@ async def get_payment_methods(
         from billing_models import Subscription
         
         subscription = await db.execute(
-            select(Subscription).where(Subscription.user_id == current_user["id"])
+            select(Subscription).where(Subscription.user_id == current_user.id)
         )
         subscription = subscription.scalar_one_or_none()
         
@@ -164,7 +164,7 @@ async def get_payment_methods(
 @router.post("/payment-methods")
 async def add_payment_method(
     request: UpdatePaymentMethodRequest,
-    current_user: Dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """Add a new payment method"""
@@ -175,12 +175,12 @@ async def add_payment_method(
         from database import User
         
         subscription = await db.execute(
-            select(Subscription).where(Subscription.user_id == current_user["id"])
+            select(Subscription).where(Subscription.user_id == current_user.id)
         )
         subscription = subscription.scalar_one_or_none()
         
         if not subscription:
-            user = await db.get(User, current_user["id"])
+            user = await db.get(User, current_user.id)
             customer_id = await BillingService.create_stripe_customer(user, db)
         else:
             customer_id = subscription.stripe_customer_id
@@ -201,7 +201,7 @@ async def add_payment_method(
 @router.post("/payment-intent")
 async def create_payment_intent(
     request: CreatePaymentIntentRequest,
-    current_user: Dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """Create a payment intent for one-time payments or setup"""
@@ -212,13 +212,13 @@ async def create_payment_intent(
         
         # Get customer ID
         subscription = await db.execute(
-            select(Subscription).where(Subscription.user_id == current_user["id"])
+            select(Subscription).where(Subscription.user_id == current_user.id)
         )
         subscription = subscription.scalar_one_or_none()
         
         if not subscription:
             from database import User
-            user = await db.get(User, current_user["id"])
+            user = await db.get(User, current_user.id)
             customer_id = await BillingService.create_stripe_customer(user, db)
         else:
             customer_id = subscription.stripe_customer_id
@@ -230,13 +230,13 @@ async def create_payment_intent(
                 amount=int(request.amount * 100),  # Convert to cents
                 currency="usd",
                 customer=customer_id,
-                metadata={"user_id": current_user["id"]}
+                metadata={"user_id": current_user.id}
             )
         else:
             # Setup intent for saving payment method
             intent = stripe.SetupIntent.create(
                 customer=customer_id,
-                metadata={"user_id": current_user["id"]}
+                metadata={"user_id": current_user.id}
             )
         
         return {"client_secret": intent.client_secret}

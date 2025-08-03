@@ -110,7 +110,7 @@ class Payment(Base):
     billing_period_end = Column(DateTime(timezone=True))
     
     # Metadata
-    metadata = Column(JSON, default={})
+    meta_data = Column(JSON, default={})  # Renamed to avoid SQLAlchemy conflict
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())

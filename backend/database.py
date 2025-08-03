@@ -43,6 +43,9 @@ class User(Base):
     # Relationships
     agents = relationship("Agent", back_populates="user", cascade="all, delete-orphan")
     api_keys = relationship("ApiKey", back_populates="user", cascade="all, delete-orphan")
+    subscription = relationship("Subscription", back_populates="user", uselist=False)
+    usage_records = relationship("UsageRecord", back_populates="user")
+    payments = relationship("Payment", back_populates="user")
 
 class ApiKey(Base):
     __tablename__ = "api_keys"
@@ -108,13 +111,23 @@ class KnowledgeDocument(Base):
     title = Column(String, nullable=True)
     content = Column(Text, nullable=False)
     url = Column(String, nullable=True)
-    meta_data = Column(JSON, default={})  # Renamed from metadata to avoid conflict
+    meta_data = Column(JSON, default={})  # Keep original name to avoid SQLAlchemy conflict
     embedding = Column(Vector())  # Dynamic dimension based on provider
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Helper property for easier access
+    def get_metadata(self):
+        return self.meta_data
+    
+    def set_metadata(self, value):
+        self.meta_data = value
 
 async def init_db():
     """Initialize database tables"""
+    # Import billing models to ensure they're registered with SQLAlchemy
+    from billing_models import Subscription, UsageRecord, Payment, PricingPlan
+    
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     logger.info("Database initialized successfully")
@@ -123,3 +136,6 @@ async def get_session() -> AsyncSession:
     """Get database session"""
     async with async_session() as session:
         yield session
+
+# Alias for compatibility
+get_db = get_session

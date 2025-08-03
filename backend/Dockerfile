@@ -5,6 +5,7 @@ WORKDIR /app
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     gcc \
+    netcat-traditional \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
@@ -20,5 +21,8 @@ RUN mkdir -p /app/data
 # Expose port
 EXPOSE 8000
 
+# Make start script executable
+RUN chmod +x start.sh
+
 # Run the application
-CMD ["python", "main.py"]
+CMD ["./start.sh"]
