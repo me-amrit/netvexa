@@ -47,6 +47,8 @@ services:
     container_name: netvexa-backend
     ports:
       - "8000:8000"
+    env_file:
+      - ./backend/.env
     environment:
       # Database
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-netvexa}:${POSTGRES_PASSWORD:-netvexa_password}@postgres:5432/${POSTGRES_DB:-netvexa_db}
@@ -71,25 +73,9 @@ services:
     volumes:
       - ./backend:/app
       - /app/__pycache__
-    command: python main.py
+    command: ./start.sh
     networks:
       - netvexa-network
-
-  # Optional: pgAdmin for database management
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: netvexa-pgadmin
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@netvexa.com}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
-    ports:
-      - "5050:80"
-    depends_on:
-      - postgres
-    networks:
-      - netvexa-network
-    profiles:
-      - tools
 
 volumes:
   postgres_data:

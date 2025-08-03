@@ -37,26 +37,40 @@ echo ""
 echo "🚀 Backend API:"
 if check_port 8000; then
     echo -e "  FastAPI:       ${GREEN}✓ Running${NC} (http://localhost:8000)"
-    echo -e "  Chat Demo:     ${GREEN}✓ Available${NC} (http://localhost:8000/static/index.html)"
     echo -e "  API Docs:      ${GREEN}✓ Available${NC} (http://localhost:8000/docs)"
-    echo -e "  Metrics:       ${GREEN}✓ Available${NC} (http://localhost:8000/static/metrics.html)"
+    echo -e "  Health Check:  ${GREEN}✓ Available${NC} (http://localhost:8000/health)"
 else
     echo -e "  FastAPI:       ${RED}✗ Not running${NC}"
-    echo "  Run: cd backend && ./run_mvp.sh"
+    echo "  Run: docker-compose up -d"
 fi
 
 echo ""
 
-# Check Marketing Site
-echo "🌐 Marketing Website:"
-NEXT_PID=$(ps aux | grep "next dev" | grep -v grep | awk '{print $2}' | head -1)
-if [ ! -z "$NEXT_PID" ]; then
+# Check Dashboard (Admin App)
+echo "💼 Dashboard (Admin App):"
+if check_port 3000; then
+    REACT_PID=$(lsof -ti:3000 | head -1)
+    echo -e "  React App:     ${GREEN}✓ Running${NC} (PID: $REACT_PID)"
+    echo -e "  Dashboard:     ${GREEN}✓ Available${NC} (http://localhost:3000)"
+    echo -e "  Note:          Will be app.netvexa.com in production"
+else
+    echo -e "  React App:     ${RED}✗ Not running${NC}"
+    echo "  Run: cd dashboard && npm start"
+fi
+
+echo ""
+
+# Check Home Page
+echo "🏠 Home Page (Next.js):"
+if check_port 3001; then
+    NEXT_PID=$(lsof -ti:3001 | head -1)
     echo -e "  Next.js:       ${GREEN}✓ Running${NC} (PID: $NEXT_PID)"
-    echo -e "  Homepage:      ${GREEN}✓ Available${NC} (http://localhost:3000)"
-    echo -e "  Blog:          ${GREEN}✓ Available${NC} (http://localhost:3000/blog)"
+    echo -e "  Homepage:      ${GREEN}✓ Available${NC} (http://localhost:3001)"
+    echo -e "  Blog:          ${GREEN}✓ Available${NC} (http://localhost:3001/blog)"
+    echo -e "  Integrations:  ${GREEN}✓ Available${NC} (http://localhost:3001/integrations/wordpress)"
 else
     echo -e "  Next.js:       ${RED}✗ Not running${NC}"
-    echo "  Run: cd marketing-site && ./start-dev.sh"
+    echo "  Run: ./start-homepage.sh (port 3001)"
 fi
 
 echo ""
