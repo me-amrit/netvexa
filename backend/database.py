@@ -55,6 +55,7 @@ class ApiKey(Base):
     name = Column(String, nullable=False)
     key = Column(String, unique=True, nullable=False, index=True)
     is_active = Column(Boolean, default=True)
+    usage_count = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
     last_used_at = Column(DateTime, nullable=True)
     

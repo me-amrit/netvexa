@@ -15,11 +15,16 @@ from auth import (
     get_password_hash, authenticate_user, create_access_token, create_refresh_token,
     get_current_user, generate_api_key, generate_reset_token, get_user_by_email
 )
+from pydantic import BaseModel
 from metrics import metrics_tracker
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/auth", tags=["authentication"])
+
+
+class ApiKeyCreate(BaseModel):
+    name: str
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
@@ -182,7 +187,7 @@ async def confirm_password_reset(reset_data: PasswordResetConfirm):
 # API Key Management
 @router.post("/api-keys", response_model=dict)
 async def create_api_key(
-    name: str,
+    api_key_data: ApiKeyCreate,
     current_user: User = Depends(get_current_user)
 ):
     """Create a new API key for the current user."""
@@ -205,7 +210,7 @@ async def create_api_key(
         # Generate new API key
         api_key = ApiKey(
             user_id=current_user.id,
-            name=name,
+            name=api_key_data.name,
             key=generate_api_key()
         )
         
