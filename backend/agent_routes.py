@@ -265,7 +265,15 @@ async def delete_agent(
                 detail="Agent not found"
             )
         
-        # Delete agent (cascades to conversations, messages, documents)
+        # Manually delete knowledge documents (no FK relationship)
+        documents_result = await session.execute(
+            select(KnowledgeDocument).where(KnowledgeDocument.agent_id == agent_id)
+        )
+        documents = documents_result.scalars().all()
+        for doc in documents:
+            await session.delete(doc)
+        
+        # Delete agent (cascades to conversations and messages)
         await session.delete(agent)
         await session.commit()
         

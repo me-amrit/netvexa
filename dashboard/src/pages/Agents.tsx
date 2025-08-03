@@ -4,10 +4,15 @@ import { PlusIcon, TrashIcon, PencilIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import { agentApi } from '../services/api';
 import CreateAgentModal from '../components/CreateAgentModal';
+import DeleteAgentModal from '../components/DeleteAgentModal';
 import { Link } from 'react-router-dom';
 
 const Agents: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; agent: any | null }>({ 
+    isOpen: false, 
+    agent: null 
+  });
   const queryClient = useQueryClient();
   
   const { data: agents, isLoading } = useQuery({
@@ -22,6 +27,7 @@ const Agents: React.FC = () => {
     mutationFn: agentApi.delete,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agents'] });
+      setDeleteModal({ isOpen: false, agent: null });
       toast.success('Agent deleted successfully');
     },
     onError: () => {
@@ -29,10 +35,18 @@ const Agents: React.FC = () => {
     },
   });
   
-  const handleDelete = (id: string, name: string) => {
-    if (window.confirm(`Are you sure you want to delete "${name}"? This action cannot be undone.`)) {
-      deleteMutation.mutate(id);
+  const handleDeleteClick = (agent: any) => {
+    setDeleteModal({ isOpen: true, agent });
+  };
+
+  const handleDeleteConfirm = () => {
+    if (deleteModal.agent) {
+      deleteMutation.mutate(deleteModal.agent.id);
     }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteModal({ isOpen: false, agent: null });
   };
   
   if (isLoading) {
@@ -155,7 +169,7 @@ const Agents: React.FC = () => {
                       <span className="sr-only">Edit {agent.name}</span>
                     </Link>
                     <button
-                      onClick={() => handleDelete(agent.id, agent.name)}
+                      onClick={() => handleDeleteClick(agent)}
                       className="text-red-600 hover:text-red-900"
                     >
                       <TrashIcon className="inline-block h-5 w-5" />
@@ -172,6 +186,16 @@ const Agents: React.FC = () => {
       <CreateAgentModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
+      />
+      
+      <DeleteAgentModal
+        isOpen={deleteModal.isOpen}
+        onClose={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+        agentName={deleteModal.agent?.name || ''}
+        conversationCount={deleteModal.agent?.conversation_count || 0}
+        documentCount={deleteModal.agent?.document_count || 0}
+        isLoading={deleteMutation.isPending}
       />
     </div>
   );
