@@ -89,4 +89,23 @@ build/
 .Spotlight-V100
 .Trashes
 ehthumbs.db
-Desktop.ini
+Desktop.ini# Environment variables with sensitive data
+*.env
+.env.*
+!.env.example
+
+# API keys and tokens
+*API_KEY*
+*_TOKEN*
+*.key
+*.pem
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
