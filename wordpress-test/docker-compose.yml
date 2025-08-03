@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  wordpress-db:
+    image: mysql:8.0
+    container_name: netvexa-wordpress-db
+    restart: always
+    environment:
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: wordpress
+      MYSQL_ROOT_PASSWORD: rootpassword
+    volumes:
+      - wp_db_data:/var/lib/mysql
+    networks:
+      - wordpress-network
+
+  wordpress:
+    depends_on:
+      - wordpress-db
+    image: wordpress:latest
+    container_name: netvexa-wordpress
+    restart: always
+    ports:
+      - "8080:80"
+    environment:
+      WORDPRESS_DB_HOST: wordpress-db:3306
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DEBUG: 1
+    volumes:
+      - wp_data:/var/www/html
+    networks:
+      - wordpress-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # Add phpMyAdmin for database management
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: netvexa-wordpress-pma
+    restart: always
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: wordpress-db
+      PMA_PORT: 3306
+      MYSQL_ROOT_PASSWORD: rootpassword
+    networks:
+      - wordpress-network
+
+volumes:
+  wp_data:
+  wp_db_data:
+
+networks:
+  wordpress-network:
+    driver: bridge

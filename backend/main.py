@@ -12,7 +12,7 @@ import logging
 from config import settings
 from rag import ProductionRAGEngine
 from models import ChatMessage, ChatResponse, AgentConfig
-from database import init_db
+from database import init_db, get_db, Agent, Conversation as DBConversation, Message as DBMessage
 from websocket_manager import ConnectionManager
 from metrics import metrics_tracker, track_conversation_started, track_lead_captured
 from auth_routes import router as auth_router
@@ -93,7 +93,6 @@ async def websocket_endpoint(websocket: WebSocket, agent_id: str):
     await track_conversation_started(agent_id, visitor_id)
     
     # Get agent's user_id for billing
-    from database import get_db, Agent, Conversation as DBConversation, Message as DBMessage
     from sqlalchemy import select
     user_id = None
     async for db in get_db():

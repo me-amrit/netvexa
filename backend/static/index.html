@@ -223,9 +223,20 @@
     </div>
     
     <script>
-        // Configuration
-        const WS_URL = 'ws://localhost:8000/ws/default_agent';
-        const API_URL = 'http://localhost:8000';
+        // Get agent ID from URL parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const agentId = urlParams.get('agent') || 'default_agent';
+        
+        // Configuration - use relative URLs to work from any host
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const host = window.location.host;
+        const WS_URL = `${protocol}//${host}/ws/${agentId}`;
+        const API_URL = `${window.location.protocol}//${host}`;
+        
+        console.log('Chat Interface Configuration:');
+        console.log('Agent ID:', agentId);
+        console.log('WebSocket URL:', WS_URL);
+        console.log('API URL:', API_URL);
         
         // Elements
         const chatMessages = document.getElementById('chatMessages');
@@ -241,6 +252,7 @@
         
         // Connect to WebSocket
         function connect() {
+            console.log('Connecting to WebSocket URL:', WS_URL);
             ws = new WebSocket(WS_URL);
             
             ws.onopen = () => {

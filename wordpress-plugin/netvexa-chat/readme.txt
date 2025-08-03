@@ -3,8 +3,8 @@ Contributors: netvexa
 Tags: chatbot, ai, lead-generation, customer-support, business-automation
 Requires at least: 5.0
 Tested up to: 6.4
-Stable tag: 0.1.0
-Requires PHP: 7.2
+Stable tag: 1.0.0
+Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -86,7 +86,26 @@ Currently English with German, French, Spanish, and Italian coming soon.
 
 == Changelog ==
 
-= 0.1.0 =
+= 1.0.0 - 2024-08-03 =
+**Major Production Release**
+* ✨ Complete redesign with enhanced UI/UX
+* 🔐 Enhanced security with improved nonce handling and input validation
+* 🚀 Auto-update system for seamless plugin maintenance
+* 📊 Advanced analytics and conversation tracking
+* 🌍 Improved multi-language support preparation
+* 📱 Enhanced mobile responsiveness
+* 🔧 Better error handling and user feedback
+* ⚡ Performance optimizations and code cleanup
+* 🎨 More customization options for widget appearance
+* 🔒 GDPR compliance improvements
+* 📈 Lead scoring and qualification features
+* 🔗 Improved API integration with better error handling
+* 🛠 WordPress 6.4 compatibility testing
+* 📋 Comprehensive logging and debugging system
+* 🎯 Better display rules and targeting options
+* 🧹 Code optimization and security hardening
+
+= 0.1.0 - 2023-12-01 =
 * Initial MVP release
 * Basic chat functionality
 * Simple admin interface
@@ -94,6 +113,9 @@ Currently English with German, French, Spanish, and Italian coming soon.
 * RAG-powered responses
 
 == Upgrade Notice ==
+
+= 1.0.0 =
+Major production release! Enhanced security, auto-updates, better error handling, and WordPress 6.4 compatibility. Highly recommended upgrade for all users.
 
 = 0.1.0 =
 First release of NETVEXA Chat. Deploy your AI business agent today!

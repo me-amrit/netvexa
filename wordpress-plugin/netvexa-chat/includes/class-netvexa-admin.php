@@ -247,23 +247,75 @@ class Netvexa_Admin {
     }
     
     public function test_connection() {
-        check_ajax_referer('netvexa_admin_nonce', 'nonce');
+        // Verify nonce for security
+        if (!check_ajax_referer('netvexa_admin_nonce', 'nonce', false)) {
+            wp_send_json_error(array('message' => __('Security check failed.', 'netvexa-chat')));
+            return;
+        }
         
-        $api_endpoint = get_option('netvexa_api_endpoint', 'http://localhost:8000');
-        $agent_id = get_option('netvexa_agent_id', 'default_agent');
+        // Check user permissions
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('Insufficient permissions.', 'netvexa-chat')));
+            return;
+        }
         
-        // Test connection to API
-        $response = wp_remote_get($api_endpoint . '/api/agents/' . $agent_id . '/config');
+        $api_endpoint = sanitize_url(get_option('netvexa_api_endpoint', 'http://localhost:8000'));
+        $agent_id = sanitize_text_field(get_option('netvexa_agent_id', ''));
+        
+        if (empty($agent_id)) {
+            wp_send_json_error(array('message' => __('Please enter an Agent ID first.', 'netvexa-chat')));
+            return;
+        }
+        
+        // Validate API endpoint format
+        if (!filter_var($api_endpoint, FILTER_VALIDATE_URL)) {
+            wp_send_json_error(array('message' => __('Invalid API endpoint URL.', 'netvexa-chat')));
+            return;
+        }
+        
+        // Test connection to API with timeout and user agent
+        $response = wp_remote_get($api_endpoint . '/api/agents/' . urlencode($agent_id) . '/config', array(
+            'timeout' => 15,
+            'user-agent' => 'NETVEXA-WordPress-Plugin/' . NETVEXA_VERSION,
+            'headers' => array(
+                'Accept' => 'application/json',
+            )
+        ));
         
         if (is_wp_error($response)) {
-            wp_send_json_error(array('message' => 'Connection failed: ' . $response->get_error_message()));
+            wp_send_json_error(array(
+                'message' => sprintf(
+                    __('Connection failed: %s', 'netvexa-chat'),
+                    $response->get_error_message()
+                )
+            ));
+            return;
         }
         
         $status_code = wp_remote_retrieve_response_code($response);
+        $response_body = wp_remote_retrieve_body($response);
+        
         if ($status_code === 200) {
-            wp_send_json_success(array('message' => 'Connection successful!'));
+            // Store successful connection timestamp
+            update_option('netvexa_last_connection_test', current_time('mysql'));
+            
+            // Try to parse agent info
+            $agent_data = json_decode($response_body, true);
+            $agent_name = isset($agent_data['name']) ? $agent_data['name'] : __('Unknown Agent', 'netvexa-chat');
+            
+            wp_send_json_success(array(
+                'message' => sprintf(
+                    __('Connection successful! Connected to agent: %s', 'netvexa-chat'),
+                    esc_html($agent_name)
+                )
+            ));
         } else {
-            wp_send_json_error(array('message' => 'Connection failed. Status: ' . $status_code));
+            wp_send_json_error(array(
+                'message' => sprintf(
+                    __('Connection failed. Status: %d. Please check your API endpoint and Agent ID.', 'netvexa-chat'),
+                    $status_code
+                )
+            ));
         }
     }
     

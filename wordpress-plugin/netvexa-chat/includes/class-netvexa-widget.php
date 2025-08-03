@@ -33,7 +33,7 @@ class Netvexa_Widget {
             return;
         }
         
-        if (!get_option('netvexa_api_key') && !get_option('netvexa_agent_id')) {
+        if (!get_option('netvexa_agent_id')) {
             return;
         }
         

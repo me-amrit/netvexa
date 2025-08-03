@@ -14,6 +14,10 @@
         color: '#2563eb'
     };
     
+    // Debug configuration
+    console.log('NETVEXA Widget Config:', config);
+    console.log('WordPress Config Available:', typeof window.netvexa_config !== 'undefined');
+    
     // Create widget class
     window.NetvexaChatWidget = {
         isOpen: false,
