@@ -1,4 +1,4 @@
-import api from './api';
+import axios from 'axios';
 import { SubscriptionTier } from '../types/billing';
 
 export interface PricingTier {
@@ -41,19 +41,19 @@ export interface PaymentMethod {
 export const billingApi = {
   // Get pricing tiers
   getPricingTiers: async (): Promise<{ tiers: PricingTier[] }> => {
-    const response = await api.get('/billing/pricing');
+    const response = await axios.get('/api/billing/pricing');
     return response.data;
   },
 
   // Get current subscription
   getSubscription: async (): Promise<Subscription> => {
-    const response = await api.get('/billing/subscription');
+    const response = await axios.get('/api/billing/subscription');
     return response.data;
   },
 
   // Create or update subscription
   createSubscription: async (tier: SubscriptionTier, paymentMethodId: string) => {
-    const response = await api.post('/billing/subscription', {
+    const response = await axios.post('/api/billing/subscription', {
       tier,
       payment_method_id: paymentMethodId,
     });
@@ -62,25 +62,25 @@ export const billingApi = {
 
   // Cancel subscription
   cancelSubscription: async () => {
-    const response = await api.delete('/billing/subscription');
+    const response = await axios.delete('/api/billing/subscription');
     return response.data;
   },
 
   // Get usage statistics
   getUsageStats: async (): Promise<Subscription> => {
-    const response = await api.get('/billing/usage');
+    const response = await axios.get('/api/billing/usage');
     return response.data;
   },
 
   // Get payment methods
   getPaymentMethods: async (): Promise<{ payment_methods: PaymentMethod[] }> => {
-    const response = await api.get('/billing/payment-methods');
+    const response = await axios.get('/api/billing/payment-methods');
     return response.data;
   },
 
   // Add payment method
   addPaymentMethod: async (paymentMethodId: string) => {
-    const response = await api.post('/billing/payment-methods', {
+    const response = await axios.post('/api/billing/payment-methods', {
       payment_method_id: paymentMethodId,
     });
     return response.data;
@@ -88,7 +88,7 @@ export const billingApi = {
 
   // Create payment intent for Stripe
   createPaymentIntent: async (amount?: number) => {
-    const response = await api.post('/billing/payment-intent', {
+    const response = await axios.post('/api/billing/payment-intent', {
       amount,
     });
     return response.data;

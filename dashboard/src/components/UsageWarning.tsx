@@ -1,11 +1,13 @@
 import React from 'react';
-import { useQuery } from 'react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { ExclamationTriangleIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { billingApi } from '../services/billingApi';
 
 const UsageWarning: React.FC = () => {
-  const { data: subscription } = useQuery('subscription', billingApi.getSubscription, {
+  const { data: subscription } = useQuery({
+    queryKey: ['subscription'],
+    queryFn: billingApi.getSubscription,
     refetchInterval: 60000, // Refetch every minute
   });
 

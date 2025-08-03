@@ -106,12 +106,14 @@ export const agentApi = {
   delete: (id: string) => axios.delete(`/api/agents/${id}`),
   
   testMessage: (id: string, data: { message: string }) => 
-    axios.post<{ response: string }>(`/api/agents/${id}/test`, data),
+    axios.post<{ response: string }>(`/api/agents/${id}/test-message?message=${encodeURIComponent(data.message)}`, {}),
     
-  uploadDocument: (id: string, formData: FormData) => 
-    axios.post(`/api/agents/${id}/documents`, formData, {
+  uploadDocument: (id: string, formData: FormData) => {
+    formData.append('agent_id', id);
+    return axios.post('/api/knowledge/ingest/file', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
-    }),
+    });
+  },
 };
 
 // API Key Management

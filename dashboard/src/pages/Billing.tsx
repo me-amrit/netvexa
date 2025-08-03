@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from 'react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   CreditCardIcon, 
   CheckIcon, 
@@ -18,34 +18,36 @@ const Billing: React.FC = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   // Fetch pricing tiers
-  const { data: pricingData } = useQuery('pricing-tiers', billingApi.getPricingTiers);
+  const { data: pricingData } = useQuery({
+    queryKey: ['pricing-tiers'],
+    queryFn: billingApi.getPricingTiers
+  });
 
   // Fetch current subscription
-  const { data: subscription, isLoading: subscriptionLoading } = useQuery(
-    'subscription',
-    billingApi.getSubscription
-  );
+  const { data: subscription, isLoading: subscriptionLoading } = useQuery({
+    queryKey: ['subscription'],
+    queryFn: billingApi.getSubscription
+  });
 
   // Create/update subscription mutation
-  const updateSubscription = useMutation(
-    ({ tier, paymentMethodId }: { tier: SubscriptionTier; paymentMethodId: string }) =>
+  const updateSubscription = useMutation({
+    mutationFn: ({ tier, paymentMethodId }: { tier: SubscriptionTier; paymentMethodId: string }) =>
       billingApi.createSubscription(tier, paymentMethodId),
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries('subscription');
-        setShowPaymentModal(false);
-        toast.success('Subscription updated successfully!');
-      },
-      onError: (error: any) => {
-        toast.error(error.response?.data?.detail || 'Failed to update subscription');
-      },
-    }
-  );
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['subscription'] });
+      setShowPaymentModal(false);
+      toast.success('Subscription updated successfully!');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || 'Failed to update subscription');
+    },
+  });
 
   // Cancel subscription mutation
-  const cancelSubscription = useMutation(billingApi.cancelSubscription, {
+  const cancelSubscription = useMutation({
+    mutationFn: billingApi.cancelSubscription,
     onSuccess: () => {
-      queryClient.invalidateQueries('subscription');
+      queryClient.invalidateQueries({ queryKey: ['subscription'] });
       toast.success('Subscription will be canceled at the end of the billing period');
     },
     onError: () => {
@@ -288,7 +290,7 @@ const Billing: React.FC = () => {
               <button
                 onClick={() => {
                   // In production, this would handle Stripe payment
-                  toast.info('Stripe payment integration needed');
+                  toast('Stripe payment integration needed');
                   setShowPaymentModal(false);
                 }}
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
