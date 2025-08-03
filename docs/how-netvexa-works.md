@@ -114,15 +114,18 @@ For text, 768 dimensions capture meaning very precisely!
 
 ## 💾 What's in the Database?
 
-When you look in Beekeeper Studio, you see:
+When you look in the database, you see:
 
 ### Table: `knowledge_documents`
 | Column | What it stores | Example |
 |--------|---------------|---------|
 | id | Unique identifier | "f871e1c0-41fa-43a6..." |
+| agent_id | Which agent owns this | "19a166d0-7f73-4354..." |
+| title | Document title | "Chunk 0" |
 | content | The actual text | "NETVEXA helps SMEs..." |
 | embedding | 768 numbers | [0.23, -0.45, 0.67, ...] |
-| meta_data | Extra info | {"source": "website", "page": "pricing"} |
+| meta_data | Extra info | {"source": "file", "page": 1} |
+| created_at | When uploaded | "2025-08-02 22:35:40" |
 
 ### How Similarity Search Works
 
@@ -217,11 +220,14 @@ When you visit the NETVEXA demo:
 ## 🛠️ For Developers
 
 The key files:
-- `main.py` - The server (handles connections)
-- `rag_engine.py` - The brain (processes messages)
-- `vector_store.py` - Database operations
-- `llm_providers.py` - AI connections (Gemini, Claude, GPT)
-- `static/index.html` - The chat interface
+- `backend/main.py` - The FastAPI server
+- `backend/rag/production_rag_engine.py` - Production RAG implementation
+- `backend/rag/hybrid_search.py` - Hybrid search engine
+- `backend/llm_providers.py` - AI connections (Gemini, Claude, GPT)
+- `backend/database.py` - Database models and connections
+- `dashboard/src/App.tsx` - React dashboard
+- `backend/agent_routes.py` - Agent management endpoints
+- `backend/knowledge_routes.py` - Document ingestion
 
 ## 📊 Monitoring Everything
 
