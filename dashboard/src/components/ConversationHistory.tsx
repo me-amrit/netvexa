@@ -145,15 +145,15 @@ const ConversationHistory: React.FC<ConversationHistoryProps> = ({ agentId }) =>
                       <div className="flex items-center space-x-4 text-xs text-gray-500">
                         <span className="flex items-center">
                           <CalendarIcon className="h-3 w-3 mr-1" />
-                          {new Date(conversation.started_at).toLocaleDateString()}
+                          {conversation.started_at ? new Date(conversation.started_at).toLocaleDateString() : 'Unknown date'}
                         </span>
                         <span className="flex items-center">
                           <ClockIcon className="h-3 w-3 mr-1" />
-                          {new Date(conversation.started_at).toLocaleTimeString()}
+                          {conversation.started_at ? new Date(conversation.started_at).toLocaleTimeString() : 'Unknown time'}
                         </span>
                         <span className="flex items-center">
                           <ChatBubbleLeftRightIcon className="h-3 w-3 mr-1" />
-                          {conversation.message_count} messages
+                          {conversation.message_count || 0} messages
                         </span>
                       </div>
                     </div>

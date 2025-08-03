@@ -386,19 +386,36 @@ async def get_agent_conversations(
         )
         conversations = result.scalars().all()
         
-        # Format response
-        return [
-            {
+        # Format response with message count
+        from sqlalchemy import func
+        formatted_conversations = []
+        for conv in conversations:
+            # Get message count
+            from database import Message
+            msg_count_result = await session.execute(
+                select(func.count(Message.id))
+                .where(Message.conversation_id == conv.id)
+            )
+            message_count = msg_count_result.scalar() or 0
+            
+            # Get user identifier (email if lead captured)
+            user_identifier = "Anonymous User"
+            if conv.lead_id:
+                # Would need to fetch lead info in production
+                user_identifier = conv.visitor_id
+            
+            formatted_conversations.append({
                 "id": conv.id,
                 "agent_id": conv.agent_id,
                 "started_at": conv.started_at.isoformat() if conv.started_at else None,
                 "ended_at": conv.ended_at.isoformat() if conv.ended_at else None,
-                "message_count": 0,  # TODO: Add message count
-                "lead_captured": False,  # TODO: Implement lead capture
-                "metadata": conv.meta_data or {}
-            }
-            for conv in conversations
-        ]
+                "message_count": message_count,
+                "lead_captured": bool(conv.lead_id),
+                "user_identifier": user_identifier,
+                "created_at": conv.started_at.isoformat() if conv.started_at else None  # For compatibility
+            })
+        
+        return formatted_conversations
 
 
 @router.post("/{agent_id}/test-message")

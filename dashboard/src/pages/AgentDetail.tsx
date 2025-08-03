@@ -299,7 +299,7 @@ const AgentDetail: React.FC = () => {
                             </p>
                           </div>
                           <time className="text-sm text-gray-500">
-                            {new Date(conversation.created_at).toLocaleDateString()}
+                            {conversation.started_at ? new Date(conversation.started_at).toLocaleDateString() : 'Unknown date'}
                           </time>
                         </div>
                       </li>

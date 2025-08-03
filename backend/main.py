@@ -19,6 +19,7 @@ from auth_routes import router as auth_router
 from agent_routes import router as agent_router
 from billing_routes import router as billing_router
 from knowledge_routes import router as knowledge_router
+from conversation_routes import router as conversation_router
 from billing_middleware import billing_middleware
 
 # Configure logging
@@ -51,6 +52,7 @@ app.include_router(auth_router)
 app.include_router(agent_router)
 app.include_router(billing_router)
 app.include_router(knowledge_router)
+app.include_router(conversation_router)
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -71,12 +73,27 @@ async def websocket_endpoint(websocket: WebSocket, agent_id: str):
     """WebSocket endpoint for real-time chat"""
     await manager.connect(websocket, agent_id)
     
-    # Track conversation start
+    # Create conversation in database
     visitor_id = f"visitor_{datetime.utcnow().timestamp()}"
+    conversation_id = None
+    
+    async for db in get_db():
+        conversation = DBConversation(
+            agent_id=agent_id,
+            visitor_id=visitor_id,
+            started_at=datetime.utcnow(),
+            meta_data={"source": "websocket"}
+        )
+        db.add(conversation)
+        await db.commit()
+        await db.refresh(conversation)
+        conversation_id = conversation.id
+        break
+    
     await track_conversation_started(agent_id, visitor_id)
     
     # Get agent's user_id for billing
-    from database import get_db, Agent
+    from database import get_db, Agent, Conversation as DBConversation, Message as DBMessage
     from sqlalchemy import select
     user_id = None
     async for db in get_db():
@@ -97,10 +114,22 @@ async def websocket_endpoint(websocket: WebSocket, agent_id: str):
             # Create chat message
             chat_message = ChatMessage(
                 content=message["content"],
-                conversation_id=message.get("conversation_id", f"conv_{agent_id}_{datetime.now().timestamp()}"),
+                conversation_id=conversation_id or message.get("conversation_id", f"conv_{agent_id}_{datetime.now().timestamp()}"),
                 sender="user",
                 timestamp=datetime.now()
             )
+            
+            # Store message in database
+            async for db in get_db():
+                db_message = DBMessage(
+                    conversation_id=conversation_id,
+                    sender="user",
+                    content=message["content"],
+                    timestamp=datetime.utcnow()
+                )
+                db.add(db_message)
+                await db.commit()
+                break
             
             # Check message limits if we have user_id
             if user_id:
@@ -138,6 +167,18 @@ async def websocket_endpoint(websocket: WebSocket, agent_id: str):
                     )
                     break
             
+            # Store agent response in database
+            async for db in get_db():
+                agent_message = DBMessage(
+                    conversation_id=conversation_id,
+                    sender="agent",
+                    content=response.content,
+                    timestamp=datetime.utcnow()
+                )
+                db.add(agent_message)
+                await db.commit()
+                break
+            
             # Send response back to client
             await websocket.send_json({
                 "type": "message",
@@ -148,6 +189,17 @@ async def websocket_endpoint(websocket: WebSocket, agent_id: str):
             
     except WebSocketDisconnect:
         manager.disconnect(websocket, agent_id)
+        # Mark conversation as ended
+        if conversation_id:
+            async for db in get_db():
+                result = await db.execute(
+                    select(DBConversation).where(DBConversation.id == conversation_id)
+                )
+                conv = result.scalar_one_or_none()
+                if conv:
+                    conv.ended_at = datetime.utcnow()
+                    await db.commit()
+                break
     except Exception as e:
         logger.error(f"WebSocket error: {e}")
         manager.disconnect(websocket, agent_id)
