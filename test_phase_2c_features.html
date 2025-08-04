@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NETVEXA Phase 2C Features Test</title>
+    <link rel="stylesheet" href="http://localhost:8000/static/rich-message-styles.css">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 20px;
+            background: #f3f4f6;
+            line-height: 1.6;
+        }
+        
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .feature-section {
+            margin: 40px 0;
+            padding: 20px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            background: #fafafa;
+        }
+        
+        .feature-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #4f46e5;
+            padding-bottom: 5px;
+        }
+        
+        .demo-area {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border: 1px solid #d1d5db;
+        }
+        
+        .message {
+            margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 12px;
+        }
+        
+        .message.user {
+            background: #e5e7eb;
+            margin-left: 50px;
+        }
+        
+        .message.agent {
+            background: #dbeafe;
+            margin-right: 50px;
+        }
+        
+        .message-header {
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        
+        .user .message-header {
+            color: #374151;
+        }
+        
+        .agent .message-header {
+            color: #1e40af;
+        }
+        
+        .controls {
+            margin: 15px 0;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .control-btn {
+            padding: 8px 16px;
+            background: #4f46e5;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        
+        .control-btn:hover {
+            background: #3730a3;
+        }
+        
+        .control-btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+        
+        .success {
+            color: #059669;
+            font-weight: 500;
+        }
+        
+        .info {
+            background: #e0f2fe;
+            border: 1px solid #81d4fa;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-size: 14px;
+            color: #0277bd;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1 style="text-align: center; color: #1f2937; margin-bottom: 10px;">🎉 NETVEXA Phase 2C Features Test</h1>
+        <p style="text-align: center; color: #6b7280; margin-bottom: 40px;">Testing Emoji Picker, Reactions, Typing Indicators, and Message Status</p>
+        
+        <!-- Emoji Picker Feature -->
+        <div class="feature-section">
+            <div class="feature-title">😀 Emoji Picker</div>
+            <div class="info">
+                Click on emojis to send them. The picker supports 24 common emojis with visual feedback.
+            </div>
+            
+            <div class="demo-area">
+                <div class="message agent">
+                    <div class="message-header">NETVEXA Assistant</div>
+                    <div id="emoji-demo"></div>
+                </div>
+                
+                <div class="controls">
+                    <button class="control-btn" onclick="showEmojiPicker()">Show Emoji Picker</button>
+                    <button class="control-btn" onclick="clearEmojiDemo()">Clear</button>
+                </div>
+                
+                <div id="emoji-output" style="margin-top: 15px;"></div>
+            </div>
+        </div>
+
+        <!-- Message Reactions Feature -->
+        <div class="feature-section">
+            <div class="feature-title">👍 Message Reactions</div>
+            <div class="info">
+                Click on existing reactions to toggle, or use the "😊+" button to add new reactions.
+            </div>
+            
+            <div class="demo-area">
+                <div class="message agent">
+                    <div class="message-header">NETVEXA Assistant</div>
+                    <div>Here's a great pricing plan for your business! What do you think?</div>
+                    <div id="reactions-demo"></div>
+                </div>
+                
+                <div class="controls">
+                    <button class="control-btn" onclick="showReactions()">Show Reactions</button>
+                    <button class="control-btn" onclick="resetReactions()">Reset Reactions</button>
+                </div>
+                
+                <div id="reactions-output" style="margin-top: 15px;"></div>
+            </div>
+        </div>
+
+        <!-- Typing Indicator Feature -->
+        <div class="feature-section">
+            <div class="feature-title">💬 Typing Indicators</div>
+            <div class="info">
+                Animated typing indicators show when the agent is composing a response.
+            </div>
+            
+            <div class="demo-area">
+                <div class="message user">
+                    <div class="message-header">You</div>
+                    <div>What are your pricing plans?</div>
+                </div>
+                
+                <div id="typing-demo"></div>
+                
+                <div class="controls">
+                    <button class="control-btn" onclick="showTypingIndicator()">Show Typing</button>
+                    <button class="control-btn" onclick="hideTypingIndicator()">Hide Typing</button>
+                    <button class="control-btn" onclick="simulateResponse()">Simulate Response</button>
+                </div>
+                
+                <div id="typing-output" style="margin-top: 15px;"></div>
+            </div>
+        </div>
+
+        <!-- Message Status Feature -->
+        <div class="feature-section">
+            <div class="feature-title">✅ Message Status</div>
+            <div class="info">
+                Messages show delivery status: Sending → Sent → Delivered → Read
+            </div>
+            
+            <div class="demo-area">
+                <div class="message user">
+                    <div class="message-header">You</div>
+                    <div>I'm interested in your Growth plan</div>
+                    <div id="status-demo"></div>
+                </div>
+                
+                <div class="controls">
+                    <button class="control-btn" onclick="showStatus('sending')">Sending</button>
+                    <button class="control-btn" onclick="showStatus('sent')">Sent</button>
+                    <button class="control-btn" onclick="showStatus('delivered')">Delivered</button>
+                    <button class="control-btn" onclick="showStatus('read')">Read</button>
+                    <button class="control-btn" onclick="showStatus('failed')">Failed</button>
+                </div>
+                
+                <div id="status-output" style="margin-top: 15px;"></div>
+            </div>
+        </div>
+
+        <!-- Combined Demo -->
+        <div class="feature-section">
+            <div class="feature-title">🚀 Complete Chat Experience</div>
+            <div class="info">
+                Experience all features working together in a realistic chat flow.
+            </div>
+            
+            <div class="demo-area" id="complete-demo">
+                <!-- Chat messages will be added here -->
+            </div>
+            
+            <div class="controls">
+                <button class="control-btn" onclick="startCompleteDemo()">Start Complete Demo</button>
+                <button class="control-btn" onclick="clearCompleteDemo()">Clear Chat</button>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+            <p style="color: #6b7280; font-size: 14px;">
+                ✅ <span class="success">Phase 2C: Polish - COMPLETED!</span><br>
+                All rich message features are now implemented and working.
+            </p>
+        </div>
+    </div>
+
+    <script src="http://localhost:8000/static/rich-message-renderer.js"></script>
+    <script>
+        // Initialize rich message renderer
+        const renderer = new RichMessageRenderer();
+        
+        // Set up event handlers
+        renderer.addEventListener('emoji', (event) => {
+            const output = document.getElementById('emoji-output');
+            output.innerHTML = `<div class="success">Emoji sent: ${event.detail.emoji}</div>`;
+        });
+        
+        renderer.addEventListener('reaction', (event) => {
+            const output = document.getElementById('reactions-output');
+            const data = event.detail;
+            output.innerHTML = `<div class="success">Reaction: ${data.emoji} (${data.action}) for message ${data.messageId}</div>`;
+        });
+
+        // Demo functions
+        function showEmojiPicker() {
+            const emojiBlock = {
+                type: 'emoji_picker',
+                title: 'Choose an emoji to express yourself:',
+                emojis: [
+                    '😀', '😂', '😍', '🤔', '👍', '👎', '❤️', '🎉',
+                    '😊', '😢', '😡', '😴', '🤗', '🙄', '😎', '🤖',
+                    '👋', '👏', '🔥', '💯', '✅', '❌', '⭐', '💡'
+                ]
+            };
+            
+            const demoArea = document.getElementById('emoji-demo');
+            const emojiEl = renderer.renderContentBlock(emojiBlock);
+            demoArea.innerHTML = '';
+            demoArea.appendChild(emojiEl);
+        }
+        
+        function clearEmojiDemo() {
+            document.getElementById('emoji-demo').innerHTML = '';
+            document.getElementById('emoji-output').innerHTML = '';
+        }
+        
+        function showReactions() {
+            const reactionsBlock = {
+                type: 'reactions',
+                messageId: 'msg_pricing_demo',
+                reactions: [
+                    { emoji: '👍', count: 5, userReacted: false },
+                    { emoji: '❤️', count: 2, userReacted: true },
+                    { emoji: '🤔', count: 1, userReacted: false }
+                ]
+            };
+            
+            const demoArea = document.getElementById('reactions-demo');
+            const reactionsEl = renderer.renderContentBlock(reactionsBlock);
+            demoArea.innerHTML = '';
+            demoArea.appendChild(reactionsEl);
+        }
+        
+        function resetReactions() {
+            document.getElementById('reactions-demo').innerHTML = '';
+            document.getElementById('reactions-output').innerHTML = '';
+        }
+        
+        function showTypingIndicator() {
+            const typingBlock = {
+                type: 'typing_indicator',
+                name: 'NETVEXA Assistant',
+                text: 'Typing...',
+                duration: 5000
+            };
+            
+            const demoArea = document.getElementById('typing-demo');
+            const typingEl = renderer.renderContentBlock(typingBlock);
+            demoArea.innerHTML = '';
+            demoArea.appendChild(typingEl);
+            
+            const output = document.getElementById('typing-output');
+            output.innerHTML = '<div class="success">Typing indicator shown (will auto-hide in 5 seconds)</div>';
+        }
+        
+        function hideTypingIndicator() {
+            document.getElementById('typing-demo').innerHTML = '';
+            document.getElementById('typing-output').innerHTML = '<div class="success">Typing indicator hidden</div>';
+        }
+        
+        function simulateResponse() {
+            showTypingIndicator();
+            
+            setTimeout(() => {
+                hideTypingIndicator();
+                const demoArea = document.getElementById('typing-demo');
+                const agentMessage = document.createElement('div');
+                agentMessage.className = 'message agent';
+                agentMessage.innerHTML = `
+                    <div class="message-header">NETVEXA Assistant</div>
+                    <div>Here are our pricing plans designed for businesses of all sizes...</div>
+                `;
+                demoArea.appendChild(agentMessage);
+                
+                const output = document.getElementById('typing-output');
+                output.innerHTML = '<div class="success">Agent response delivered!</div>';
+            }, 3000);
+        }
+        
+        function showStatus(status) {
+            const statusBlock = {
+                type: 'message_status',
+                messageId: 'msg_user_interest',
+                status: status,
+                timestamp: new Date().toISOString()
+            };
+            
+            const demoArea = document.getElementById('status-demo');
+            const statusEl = renderer.renderContentBlock(statusBlock);
+            demoArea.innerHTML = '';
+            demoArea.appendChild(statusEl);
+            
+            const output = document.getElementById('status-output');
+            output.innerHTML = `<div class="success">Message status: ${status}</div>`;
+        }
+        
+        function startCompleteDemo() {
+            const demoArea = document.getElementById('complete-demo');
+            demoArea.innerHTML = '';
+            
+            // Step 1: User message with status
+            const userMessage = document.createElement('div');
+            userMessage.className = 'message user';
+            userMessage.innerHTML = `
+                <div class="message-header">You</div>
+                <div>What are your pricing plans?</div>
+            `;
+            demoArea.appendChild(userMessage);
+            
+            // Add message status
+            setTimeout(() => {
+                const statusBlock = {
+                    type: 'message_status',
+                    messageId: 'complete_demo_user',
+                    status: 'sent',
+                    timestamp: new Date().toISOString()
+                };
+                const statusEl = renderer.renderContentBlock(statusBlock);
+                userMessage.appendChild(statusEl);
+            }, 500);
+            
+            // Step 2: Typing indicator
+            setTimeout(() => {
+                const typingBlock = {
+                    type: 'typing_indicator',
+                    name: 'NETVEXA Assistant',
+                    duration: 3000
+                };
+                const typingEl = renderer.renderContentBlock(typingBlock);
+                demoArea.appendChild(typingEl);
+            }, 1000);
+            
+            // Step 3: Agent response with reactions
+            setTimeout(() => {
+                // Remove typing indicator
+                const typingIndicators = demoArea.querySelectorAll('.typing-indicator');
+                typingIndicators.forEach(el => el.remove());
+                
+                // Add agent message
+                const agentMessage = document.createElement('div');
+                agentMessage.className = 'message agent';
+                agentMessage.innerHTML = `
+                    <div class="message-header">NETVEXA Assistant</div>
+                    <div>Here are our pricing plans designed for businesses of all sizes! Which one interests you most?</div>
+                `;
+                demoArea.appendChild(agentMessage);
+                
+                // Add reactions after a delay
+                setTimeout(() => {
+                    const reactionsBlock = {
+                        type: 'reactions',
+                        messageId: 'complete_demo_agent',
+                        reactions: [
+                            { emoji: '👍', count: 1, userReacted: false },
+                            { emoji: '🤔', count: 1, userReacted: false }
+                        ]
+                    };
+                    const reactionsEl = renderer.renderContentBlock(reactionsBlock);
+                    agentMessage.appendChild(reactionsEl);
+                }, 1000);
+                
+                // Add emoji picker
+                setTimeout(() => {
+                    const emojiBlock = {
+                        type: 'emoji_picker',
+                        title: 'Quick response:',
+                        emojis: ['👍', '❤️', '🤔', '👎', '🎉', '😊', '💰', '✅']
+                    };
+                    const emojiEl = renderer.renderContentBlock(emojiBlock);
+                    demoArea.appendChild(emojiEl);
+                }, 2000);
+            }, 4000);
+        }
+        
+        function clearCompleteDemo() {
+            document.getElementById('complete-demo').innerHTML = '';
+        }
+        
+        // Initialize with a welcome message
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Phase 2C Features Test Page Loaded');
+            console.log('All rich message features are ready for testing!');
+        });
+    </script>
+</body>
+</html>

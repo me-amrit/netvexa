@@ -104,6 +104,14 @@ class RichMessageRenderer {
                 return this.renderImageBlock(block);
             case 'media':
                 return this.renderMediaBlock(block);
+            case 'emoji_picker':
+                return this.renderEmojiPickerBlock(block);
+            case 'reactions':
+                return this.renderReactionsBlock(block);
+            case 'typing_indicator':
+                return this.renderTypingIndicatorBlock(block);
+            case 'message_status':
+                return this.renderMessageStatusBlock(block);
             default:
                 console.warn(`Unknown block type: ${block.type}`);
                 return this.renderTextBlock({ text: `[Unsupported content: ${block.type}]` });
@@ -482,8 +490,366 @@ class RichMessageRenderer {
                 if (action.body) emailUrl += `&body=${encodeURIComponent(action.body)}`;
                 window.location.href = emailUrl;
                 break;
+            case 'emoji':
+                this.triggerEvent('emoji', {
+                    emoji: action.value || action.emoji
+                });
+                break;
+            case 'reaction':
+                this.triggerEvent('reaction', action.value || action);
+                break;
             default:
                 console.warn(`Unknown action type: ${action.type}`);
+        }
+    }
+
+    /**
+     * Render emoji picker block
+     */
+    renderEmojiPickerBlock(block) {
+        const containerEl = document.createElement('div');
+        containerEl.className = 'emoji-picker-block';
+        
+        // Title
+        if (block.title) {
+            const titleEl = document.createElement('div');
+            titleEl.className = 'emoji-picker-title';
+            titleEl.textContent = block.title;
+            containerEl.appendChild(titleEl);
+        }
+        
+        // Emoji grid
+        const gridEl = document.createElement('div');
+        gridEl.className = 'emoji-grid';
+        
+        const emojis = block.emojis || [
+            '😀', '😂', '😍', '🤔', '👍', '👎', '❤️', '🎉',
+            '😊', '😢', '😡', '😴', '🤗', '🙄', '😎', '🤖',
+            '👋', '👏', '🔥', '💯', '✅', '❌', '⭐', '💡'
+        ];
+        
+        emojis.forEach(emoji => {
+            const emojiEl = document.createElement('button');
+            emojiEl.className = 'emoji-button';
+            emojiEl.textContent = emoji;
+            emojiEl.title = `Send ${emoji}`;
+            
+            emojiEl.addEventListener('click', () => {
+                this.handleAction({
+                    type: 'emoji',
+                    value: emoji
+                });
+                // Add visual feedback
+                emojiEl.classList.add('emoji-selected');
+                setTimeout(() => emojiEl.classList.remove('emoji-selected'), 200);
+            });
+            
+            gridEl.appendChild(emojiEl);
+        });
+        
+        containerEl.appendChild(gridEl);
+        return containerEl;
+    }
+
+    /**
+     * Render message reactions block
+     */
+    renderReactionsBlock(block) {
+        const containerEl = document.createElement('div');
+        containerEl.className = 'message-reactions';
+        
+        // Message reference
+        if (block.messageId) {
+            containerEl.setAttribute('data-message-id', block.messageId);
+        }
+        
+        // Reactions
+        const reactionsEl = document.createElement('div');
+        reactionsEl.className = 'reactions-list';
+        
+        if (block.reactions && block.reactions.length > 0) {
+            block.reactions.forEach(reaction => {
+                const reactionEl = document.createElement('button');
+                reactionEl.className = 'reaction-button';
+                if (reaction.userReacted) {
+                    reactionEl.classList.add('user-reacted');
+                }
+                
+                reactionEl.innerHTML = `
+                    <span class="reaction-emoji">${reaction.emoji}</span>
+                    <span class="reaction-count">${reaction.count}</span>
+                `;
+                
+                reactionEl.addEventListener('click', () => {
+                    this.handleAction({
+                        type: 'reaction',
+                        value: { emoji: reaction.emoji, messageId: block.messageId, action: 'toggle' }
+                    });
+                });
+                
+                reactionsEl.appendChild(reactionEl);
+            });
+        }
+        
+        // Add reaction button
+        const addReactionEl = document.createElement('button');
+        addReactionEl.className = 'add-reaction-button';
+        addReactionEl.innerHTML = '😊+';
+        addReactionEl.title = 'Add reaction';
+        
+        addReactionEl.addEventListener('click', () => {
+            this.showEmojiPickerForReaction(block.messageId);
+        });
+        
+        reactionsEl.appendChild(addReactionEl);
+        containerEl.appendChild(reactionsEl);
+        
+        return containerEl;
+    }
+
+    /**
+     * Show emoji picker for adding reactions
+     */
+    showEmojiPickerForReaction(messageId) {
+        // Create inline emoji picker
+        const existingPicker = document.querySelector('.inline-emoji-picker');
+        if (existingPicker) {
+            existingPicker.remove();
+        }
+        
+        const pickerEl = document.createElement('div');
+        pickerEl.className = 'inline-emoji-picker';
+        
+        const quickEmojis = ['😀', '😂', '😍', '👍', '❤️', '🎉', '🤔', '😢'];
+        
+        quickEmojis.forEach(emoji => {
+            const emojiBtn = document.createElement('button');
+            emojiBtn.className = 'quick-emoji-button';
+            emojiBtn.textContent = emoji;
+            
+            emojiBtn.addEventListener('click', () => {
+                this.handleAction({
+                    type: 'reaction',
+                    value: { emoji, messageId, action: 'add' }
+                });
+                pickerEl.remove();
+            });
+            
+            pickerEl.appendChild(emojiBtn);
+        });
+        
+        // Position near the add reaction button
+        const addButton = document.querySelector(`[data-message-id="${messageId}"] .add-reaction-button`);
+        if (addButton) {
+            addButton.parentNode.insertBefore(pickerEl, addButton.nextSibling);
+        }
+        
+        // Auto-close after 5 seconds
+        setTimeout(() => {
+            if (pickerEl.parentNode) {
+                pickerEl.remove();
+            }
+        }, 5000);
+    }
+
+    /**
+     * Render typing indicator block
+     */
+    renderTypingIndicatorBlock(block) {
+        const containerEl = document.createElement('div');
+        containerEl.className = 'typing-indicator';
+        
+        if (block.avatar) {
+            const avatarEl = document.createElement('img');
+            avatarEl.className = 'typing-avatar';
+            avatarEl.src = block.avatar;
+            avatarEl.alt = block.name || 'Agent';
+            containerEl.appendChild(avatarEl);
+        }
+        
+        const bubbleEl = document.createElement('div');
+        bubbleEl.className = 'typing-bubble';
+        
+        // Typing dots animation
+        const dotsEl = document.createElement('div');
+        dotsEl.className = 'typing-dots';
+        
+        for (let i = 0; i < 3; i++) {
+            const dotEl = document.createElement('span');
+            dotEl.className = 'typing-dot';
+            dotsEl.appendChild(dotEl);
+        }
+        
+        bubbleEl.appendChild(dotsEl);
+        
+        // Optional typing text
+        if (block.text) {
+            const textEl = document.createElement('div');
+            textEl.className = 'typing-text';
+            textEl.textContent = block.text;
+            bubbleEl.appendChild(textEl);
+        }
+        
+        containerEl.appendChild(bubbleEl);
+        
+        // Auto-remove after specified duration or 5 seconds
+        const duration = block.duration || 5000;
+        setTimeout(() => {
+            if (containerEl.parentNode) {
+                containerEl.remove();
+            }
+        }, duration);
+        
+        return containerEl;
+    }
+
+    /**
+     * Render message status block
+     */
+    renderMessageStatusBlock(block) {
+        const containerEl = document.createElement('div');
+        containerEl.className = 'message-status';
+        
+        if (block.messageId) {
+            containerEl.setAttribute('data-message-id', block.messageId);
+        }
+        
+        // Status indicator
+        const statusEl = document.createElement('div');
+        statusEl.className = `status-indicator status-${block.status || 'sent'}`;
+        
+        // Status icons
+        switch (block.status) {
+            case 'sending':
+                statusEl.innerHTML = '<span class="status-icon">⏳</span><span class="status-text">Sending...</span>';
+                break;
+            case 'sent':
+                statusEl.innerHTML = '<span class="status-icon">✓</span><span class="status-text">Sent</span>';
+                break;
+            case 'delivered':
+                statusEl.innerHTML = '<span class="status-icon">✓✓</span><span class="status-text">Delivered</span>';
+                break;
+            case 'read':
+                statusEl.innerHTML = '<span class="status-icon status-read">✓✓</span><span class="status-text">Read</span>';
+                break;
+            case 'failed':
+                statusEl.innerHTML = '<span class="status-icon">⚠️</span><span class="status-text">Failed</span>';
+                break;
+            default:
+                statusEl.innerHTML = '<span class="status-icon">✓</span><span class="status-text">Sent</span>';
+        }
+        
+        containerEl.appendChild(statusEl);
+        
+        // Timestamp
+        if (block.timestamp) {
+            const timeEl = document.createElement('div');
+            timeEl.className = 'message-timestamp';
+            timeEl.textContent = this.formatTimestamp(block.timestamp);
+            containerEl.appendChild(timeEl);
+        }
+        
+        return containerEl;
+    }
+
+    /**
+     * Format timestamp for display
+     */
+    formatTimestamp(timestamp) {
+        const date = new Date(timestamp);
+        const now = new Date();
+        const diff = now - date;
+        
+        // Less than a minute
+        if (diff < 60000) {
+            return 'Just now';
+        }
+        
+        // Less than an hour
+        if (diff < 3600000) {
+            const minutes = Math.floor(diff / 60000);
+            return `${minutes}m ago`;
+        }
+        
+        // Less than a day
+        if (diff < 86400000) {
+            const hours = Math.floor(diff / 3600000);
+            return `${hours}h ago`;
+        }
+        
+        // More than a day - show date
+        if (date.toDateString() === now.toDateString()) {
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        } else {
+            return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+        }
+    }
+
+    /**
+     * Show typing indicator
+     */
+    showTypingIndicator(options = {}) {
+        const typingBlock = {
+            type: 'typing_indicator',
+            name: options.name || 'Agent',
+            avatar: options.avatar,
+            text: options.text,
+            duration: options.duration || 3000
+        };
+        
+        const typingEl = this.renderTypingIndicatorBlock(typingBlock);
+        
+        // Find chat container and append
+        const chatContainer = document.querySelector('.chat-messages') || document.body;
+        chatContainer.appendChild(typingEl);
+        
+        return typingEl;
+    }
+
+    /**
+     * Hide typing indicator
+     */
+    hideTypingIndicator() {
+        const typingIndicators = document.querySelectorAll('.typing-indicator');
+        typingIndicators.forEach(indicator => {
+            indicator.remove();
+        });
+    }
+
+    /**
+     * Update message status
+     */
+    updateMessageStatus(messageId, status, timestamp) {
+        const statusEl = document.querySelector(`[data-message-id="${messageId}"] .status-indicator`);
+        if (statusEl) {
+            statusEl.className = `status-indicator status-${status}`;
+            
+            // Update status content
+            switch (status) {
+                case 'sending':
+                    statusEl.innerHTML = '<span class="status-icon">⏳</span><span class="status-text">Sending...</span>';
+                    break;
+                case 'sent':
+                    statusEl.innerHTML = '<span class="status-icon">✓</span><span class="status-text">Sent</span>';
+                    break;
+                case 'delivered':
+                    statusEl.innerHTML = '<span class="status-icon">✓✓</span><span class="status-text">Delivered</span>';
+                    break;
+                case 'read':
+                    statusEl.innerHTML = '<span class="status-icon status-read">✓✓</span><span class="status-text">Read</span>';
+                    break;
+                case 'failed':
+                    statusEl.innerHTML = '<span class="status-icon">⚠️</span><span class="status-text">Failed</span>';
+                    break;
+            }
+            
+            // Update timestamp if provided
+            if (timestamp) {
+                const timestampEl = statusEl.parentNode.querySelector('.message-timestamp');
+                if (timestampEl) {
+                    timestampEl.textContent = this.formatTimestamp(timestamp);
+                }
+            }
         }
     }
 
