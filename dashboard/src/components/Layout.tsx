@@ -11,7 +11,8 @@ import {
   ArrowRightOnRectangleIcon,
   UserCircleIcon,
   ChartBarIcon,
-  CreditCardIcon
+  CreditCardIcon,
+  UsersIcon
 } from '@heroicons/react/24/outline';
 import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
@@ -20,6 +21,7 @@ import UsageWarning from './UsageWarning';
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
   { name: 'Agents', href: '/agents', icon: CpuChipIcon },
+  { name: 'Leads', href: '/leads', icon: UsersIcon },
   { name: 'Analytics', href: '/analytics', icon: ChartBarIcon },
   { name: 'API Keys', href: '/api-keys', icon: KeyIcon },
   { name: 'Billing', href: '/billing', icon: CreditCardIcon },

@@ -183,6 +183,118 @@
                 opacity: 1;
             }
         }
+        
+        .lead-form-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .lead-form {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+        
+        .lead-form h3 {
+            margin-bottom: 16px;
+            color: #1f2937;
+            font-size: 20px;
+            text-align: center;
+        }
+        
+        .lead-form-field {
+            margin-bottom: 16px;
+        }
+        
+        .lead-form label {
+            display: block;
+            margin-bottom: 6px;
+            color: #374151;
+            font-weight: 500;
+        }
+        
+        .lead-form input, .lead-form textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.2s;
+        }
+        
+        .lead-form input:focus, .lead-form textarea:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+        
+        .lead-form-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+        
+        .lead-form button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .lead-form .btn-primary {
+            background: #2563eb;
+            color: white;
+        }
+        
+        .lead-form .btn-primary:hover {
+            background: #1d4ed8;
+        }
+        
+        .lead-form .btn-secondary {
+            background: #e5e7eb;
+            color: #374151;
+        }
+        
+        .lead-form .btn-secondary:hover {
+            background: #d1d5db;
+        }
+        
+        .handoff-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: #f59e0b;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 8px;
+            transition: background-color 0.2s;
+        }
+        
+        .handoff-button:hover {
+            background: #d97706;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
@@ -220,6 +332,22 @@
             >
             <button id="sendButton" disabled>Send</button>
         </div>
+        
+        <!-- Lead Form Overlay -->
+        <div class="lead-form-overlay hidden" id="leadFormOverlay">
+            <div class="lead-form" id="leadForm">
+                <h3 id="leadFormTitle">Get in Touch</h3>
+                <form id="leadFormData">
+                    <div id="leadFormFields">
+                        <!-- Dynamic form fields will be inserted here -->
+                    </div>
+                    <div class="lead-form-buttons">
+                        <button type="button" class="btn-secondary" id="leadFormCancel">Cancel</button>
+                        <button type="submit" class="btn-primary" id="leadFormSubmit">Submit</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
     
     <script>
@@ -249,6 +377,11 @@
         let ws = null;
         let reconnectTimeout = null;
         let conversationId = `conv_${Date.now()}`;
+        
+        // Lead capture state
+        let messageCount = 0;
+        let leadForms = [];
+        let capturedLead = null;
         
         // Connect to WebSocket
         function connect() {
@@ -304,6 +437,10 @@
             
             // Add user message to chat
             addMessage(message, 'user');
+            
+            // Increment message count and check triggers
+            messageCount++;
+            setTimeout(() => checkLeadCaptureTriggers(), 1000);
             
             // Show typing indicator
             showTypingIndicator();
@@ -367,6 +504,189 @@
         
         // Initialize connection
         connect();
+        
+        // Load lead forms configuration
+        async function loadLeadForms() {
+            try {
+                const response = await fetch(`${API_URL}/api/leads/forms/${agentId}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    leadForms = data.forms || [];
+                    console.log('Lead forms loaded:', leadForms);
+                }
+            } catch (error) {
+                console.error('Error loading lead forms:', error);
+            }
+        }
+        
+        // Check if lead capture should be triggered
+        function checkLeadCaptureTriggers() {
+            if (capturedLead || leadForms.length === 0) return;
+            
+            for (const form of leadForms) {
+                const conditions = form.trigger_conditions || {};
+                
+                // Check message count trigger
+                if (conditions.message_count && messageCount >= conditions.message_count) {
+                    showLeadForm(form);
+                    return;
+                }
+                
+                // Check keyword triggers (could be enhanced to check recent messages)
+                if (conditions.keywords && conditions.keywords.length > 0) {
+                    // For now, trigger after a few messages if keywords exist
+                    if (messageCount >= 3) {
+                        showLeadForm(form);
+                        return;
+                    }
+                }
+            }
+        }
+        
+        // Show lead capture form
+        function showLeadForm(form) {
+            const overlay = document.getElementById('leadFormOverlay');
+            const formTitle = document.getElementById('leadFormTitle');
+            const formFields = document.getElementById('leadFormFields');
+            
+            formTitle.textContent = form.name || 'Get in Touch';
+            
+            // Clear existing fields
+            formFields.innerHTML = '';
+            
+            // Generate form fields
+            form.fields.forEach(field => {
+                const fieldDiv = document.createElement('div');
+                fieldDiv.className = 'lead-form-field';
+                
+                const label = document.createElement('label');
+                label.textContent = field.label + (field.required ? ' *' : '');
+                label.setAttribute('for', field.name);
+                
+                let input;
+                if (field.type === 'textarea') {
+                    input = document.createElement('textarea');
+                    input.rows = 3;
+                } else {
+                    input = document.createElement('input');
+                    input.type = field.type || 'text';
+                }
+                
+                input.name = field.name;
+                input.id = field.name;
+                input.required = field.required || false;
+                input.placeholder = field.placeholder || '';
+                
+                fieldDiv.appendChild(label);
+                fieldDiv.appendChild(input);
+                formFields.appendChild(fieldDiv);
+            });
+            
+            overlay.classList.remove('hidden');
+        }
+        
+        // Hide lead form
+        function hideLeadForm() {
+            const overlay = document.getElementById('leadFormOverlay');
+            overlay.classList.add('hidden');
+        }
+        
+        // Submit lead form
+        async function submitLeadForm(formData) {
+            try {
+                const response = await fetch(`${API_URL}/api/leads/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        conversation_id: conversationId,
+                        agent_id: agentId,
+                        email: formData.email,
+                        name: formData.name || null,
+                        phone: formData.phone || null,
+                        company: formData.company || null,
+                        custom_fields: formData
+                    })
+                });
+                
+                if (response.ok) {
+                    const lead = await response.json();
+                    capturedLead = lead;
+                    hideLeadForm();
+                    addMessage("Thank you! We've captured your information and will get back to you soon.", 'agent');
+                    showHandoffButton();
+                    return true;
+                }
+            } catch (error) {
+                console.error('Error submitting lead:', error);
+            }
+            return false;
+        }
+        
+        // Show handoff to human button
+        function showHandoffButton() {
+            const handoffBtn = document.createElement('button');
+            handoffBtn.className = 'handoff-button';
+            handoffBtn.innerHTML = '👨‍💼 Connect with Human Agent';
+            handoffBtn.onclick = requestHumanHandoff;
+            
+            const lastMessage = chatMessages.lastElementChild;
+            if (lastMessage && lastMessage.classList.contains('agent')) {
+                lastMessage.appendChild(handoffBtn);
+            }
+        }
+        
+        // Request human handoff
+        async function requestHumanHandoff() {
+            try {
+                const response = await fetch(`${API_URL}/api/leads/handoff`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        lead_id: capturedLead.id,
+                        conversation_id: conversationId,
+                        agent_id: agentId,
+                        priority: 'normal',
+                        reason: 'User requested human assistance'
+                    })
+                });
+                
+                if (response.ok) {
+                    addMessage("I've requested a human agent to join this conversation. Someone will be with you shortly!", 'agent');
+                    
+                    // Hide the handoff button
+                    const handoffButtons = document.querySelectorAll('.handoff-button');
+                    handoffButtons.forEach(btn => btn.style.display = 'none');
+                }
+            } catch (error) {
+                console.error('Error requesting handoff:', error);
+                addMessage("Sorry, I couldn't connect you with a human agent right now. Please try again later.", 'agent');
+            }
+        }
+        
+        // Lead form event listeners
+        document.getElementById('leadFormCancel').addEventListener('click', hideLeadForm);
+        
+        document.getElementById('leadFormData').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const leadData = {};
+            for (let [key, value] of formData.entries()) {
+                leadData[key] = value;
+            }
+            
+            const success = await submitLeadForm(leadData);
+            if (!success) {
+                alert('Sorry, there was an error submitting your information. Please try again.');
+            }
+        });
+        
+        // Load lead forms on page load
+        loadLeadForms();
         
         // Test data ingestion (for demo purposes)
         async function ingestSampleData() {

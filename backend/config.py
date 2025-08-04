@@ -70,6 +70,15 @@ class Settings(BaseSettings):
     STRIPE_PRO_PRICE_ID: Optional[str] = None
     STRIPE_BUSINESS_PRICE_ID: Optional[str] = None
     
+    # Email Configuration
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
+    SMTP_USE_TLS: bool = True
+    EMAIL_FROM: str = "noreply@netvexa.com"
+    EMAIL_FROM_NAME: str = "NETVEXA"
+    
     class Config:
         env_file = ".env"
         case_sensitive = True

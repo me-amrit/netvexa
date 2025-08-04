@@ -128,6 +128,8 @@ async def init_db():
     """Initialize database tables"""
     # Import billing models to ensure they're registered with SQLAlchemy
     from billing_models import Subscription, UsageRecord, Payment, PricingPlan
+    # Import lead models
+    from lead_models import Lead, HandoffRequest, LeadForm
     
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

@@ -20,6 +20,7 @@ from agent_routes import router as agent_router
 from billing_routes import router as billing_router
 from knowledge_routes import router as knowledge_router
 from conversation_routes import router as conversation_router
+from lead_routes import router as lead_router
 from billing_middleware import billing_middleware
 
 # Configure logging
@@ -53,6 +54,7 @@ app.include_router(agent_router)
 app.include_router(billing_router)
 app.include_router(knowledge_router)
 app.include_router(conversation_router)
+app.include_router(lead_router)
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")

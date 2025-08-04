@@ -117,6 +117,46 @@ export interface EngagementPatterns {
   peak_day: string;
 }
 
+// Lead management types
+export interface Lead {
+  id: string;
+  conversation_id?: string;
+  agent_id: string;
+  email: string;
+  name?: string;
+  phone?: string;
+  company?: string;
+  status: 'new' | 'contacted' | 'qualified' | 'converted' | 'lost';
+  source: 'chat_widget' | 'contact_form' | 'api' | 'manual' | 'import';
+  score: number;
+  created_at: string;
+  updated_at: string;
+  custom_fields: Record<string, any>;
+  notes?: string;
+  tags: string[];
+}
+
+export interface HandoffRequest {
+  id: string;
+  lead_id: string;
+  conversation_id: string;
+  agent_id: string;
+  status: 'pending' | 'assigned' | 'in_progress' | 'completed' | 'cancelled';
+  priority: string;
+  reason?: string;
+  assigned_to?: string;
+  created_at: string;
+  started_at?: string;
+  completed_at?: string;
+}
+
+export interface LeadAnalytics {
+  total_leads: number;
+  leads_by_status: Record<string, number>;
+  average_score: number;
+  period_days: number;
+}
+
 // Agent API
 export const agentApi = {
   list: () => axios.get<Agent[]>('/api/agents/'),
@@ -204,4 +244,22 @@ export const userApi = {
     
   updatePassword: (data: { current_password: string; new_password: string }) => 
     axios.put('/api/auth/password', data),
+};
+
+// Lead API
+export const leadApi = {
+  list: (params?: { agent_id?: string; status?: string; limit?: number; offset?: number }) => 
+    axios.get<Lead[]>('/api/leads/', { params }),
+  
+  get: (id: string) => 
+    axios.get<Lead>(`/api/leads/${id}`),
+  
+  update: (id: string, data: Partial<Lead>) => 
+    axios.put<Lead>(`/api/leads/${id}`, data),
+  
+  getAnalytics: (days: number = 30) => 
+    axios.get<LeadAnalytics>(`/api/leads/analytics/summary?days=${days}`),
+  
+  getHandoffRequests: () => 
+    axios.get<HandoffRequest[]>('/api/leads/handoff/pending'),
 };
