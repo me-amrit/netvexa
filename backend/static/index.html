@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NETVEXA MVP - Chat Demo</title>
+    <link rel="stylesheet" href="rich-message-styles.css">
     <style>
         * {
             margin: 0;
@@ -309,10 +310,7 @@
         </div>
         
         <div class="chat-messages" id="chatMessages">
-            <div class="message agent">
-                <div>Welcome! I'm your NETVEXA assistant. How can I help you today?</div>
-                <div class="message-time">Just now</div>
-            </div>
+            <!-- Welcome message will be added via JavaScript -->
         </div>
         
         <div class="typing-indicator" id="typingIndicator">
@@ -350,6 +348,7 @@
         </div>
     </div>
     
+    <script src="rich-message-renderer.js"></script>
     <script>
         // Get agent ID from URL parameter
         const urlParams = new URLSearchParams(window.location.search);
@@ -382,6 +381,33 @@
         let messageCount = 0;
         let leadForms = [];
         let capturedLead = null;
+        
+        // Rich message renderer
+        const richMessageRenderer = new RichMessageRenderer({
+            theme: 'light',
+            enableAnimations: true
+        });
+        
+        // Handle rich message interactions
+        richMessageRenderer.on('postback', (data) => {
+            console.log('Postback received:', data);
+            
+            // Send the postback as a user message
+            const userMessage = data.payload || 'Button clicked';
+            addMessage(userMessage, 'user');
+            
+            // Send postback to server via WebSocket
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                showTypingIndicator();
+                ws.send(JSON.stringify({
+                    content: userMessage,
+                    conversation_id: conversationId,
+                    type: 'postback',
+                    payload: data.payload,
+                    data: data.data
+                }));
+            }
+        });
         
         // Connect to WebSocket
         function connect() {
@@ -462,7 +488,22 @@
             messageDiv.className = `message ${sender}`;
             
             const contentDiv = document.createElement('div');
-            contentDiv.textContent = content;
+            contentDiv.className = 'message-content';
+            
+            // Use rich message renderer for agent messages, or if content is an object
+            if (sender === 'agent' && typeof content === 'object') {
+                richMessageRenderer.render(content, contentDiv);
+            } else if (sender === 'agent' && typeof content === 'string') {
+                // Try to detect if it's markdown or rich content
+                if (content.includes('**') || content.includes('*') || content.includes('[') || content.includes('{')) {
+                    richMessageRenderer.render(content, contentDiv);
+                } else {
+                    contentDiv.textContent = content;
+                }
+            } else {
+                // User messages remain as plain text
+                contentDiv.textContent = content;
+            }
             
             const timeDiv = document.createElement('div');
             timeDiv.className = 'message-time';
@@ -502,8 +543,35 @@
             }
         });
         
+        // Show welcome message
+        function showWelcomeMessage() {
+            const welcomeMessage = {
+                type: 'rich_message',
+                version: '1.0',
+                content: [
+                    {
+                        type: 'text',
+                        text: 'Welcome! I\'m your **NETVEXA assistant**. How can I help you today?'
+                    },
+                    {
+                        type: 'quick_replies',
+                        text: 'Here are some things I can help with:',
+                        replies: [
+                            { text: '💰 View Pricing', payload: 'view_pricing' },
+                            { text: '📞 Contact Sales', payload: 'contact_sales' },
+                            { text: '📚 Learn More', payload: 'learn_more' }
+                        ]
+                    }
+                ]
+            };
+            addMessage(welcomeMessage, 'agent');
+        }
+        
         // Initialize connection
         connect();
+        
+        // Show welcome message after a short delay
+        setTimeout(showWelcomeMessage, 500);
         
         // Load lead forms configuration
         async function loadLeadForms() {
