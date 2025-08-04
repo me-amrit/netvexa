@@ -41,12 +41,23 @@
   color: var(--text-color);
 }
 
-/* Ensure text is visible in agent messages */
+/* Ensure text is visible in agent messages - comprehensive fix */
 .message.agent .rich-message,
 .message.agent .text-block,
 .message.agent .quick-replies-text,
 .message.agent .rich-message *,
-.message.agent .text-block * {
+.message.agent .text-block *,
+.message.agent .card-title,
+.message.agent .card-subtitle,
+.message.agent .card-body,
+.message.agent .list-item-title,
+.message.agent .list-item-subtitle,
+.message.agent .quick-reply-button,
+.message.agent .btn,
+.message.agent .media-title,
+.message.agent p,
+.message.agent span,
+.message.agent div {
   color: #1f2937 !important;
 }
 
@@ -81,6 +92,24 @@
 .message.agent .text-block strong {
   color: #1f2937 !important;
   font-weight: 600;
+}
+
+/* Ensure buttons have proper contrast in agent messages */
+.message.agent .btn-primary {
+  background: var(--primary-color) !important;
+  color: #ffffff !important;
+}
+
+.message.agent .btn-secondary {
+  background: #ffffff !important;
+  color: #1f2937 !important;
+  border: 1px solid #d1d5db !important;
+}
+
+.message.agent .btn-outline {
+  background: #ffffff !important;
+  color: var(--primary-color) !important;
+  border: 1px solid var(--primary-color) !important;
 }
 
 .text-block em {
@@ -227,6 +256,12 @@
   max-width: 280px;
 }
 
+/* Ensure cards have proper background in agent messages for text visibility */
+.message.agent .card {
+  background: #ffffff !important;
+  color: #1f2937 !important;
+}
+
 .card:hover {
   box-shadow: var(--shadow-md);
   transform: translateY(-1px);
@@ -362,6 +397,13 @@
   white-space: nowrap;
 }
 
+/* Ensure quick reply buttons are visible in agent messages */
+.message.agent .quick-reply-button {
+  background: #ffffff !important;
+  color: #374151 !important;
+  border: 1px solid #d1d5db !important;
+}
+
 .quick-reply-button:hover {
   background: var(--background-secondary);
   border-color: var(--primary-color);
@@ -374,6 +416,12 @@
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius-lg);
   overflow: hidden;
+}
+
+/* Ensure list blocks have proper background in agent messages for text visibility */
+.message.agent .list-block {
+  background: #ffffff !important;
+  color: #1f2937 !important;
 }
 
 .list-item {
