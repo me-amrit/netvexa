@@ -22,6 +22,7 @@ from knowledge_routes import router as knowledge_router
 from conversation_routes import router as conversation_router
 from lead_routes import router as lead_router
 from billing_middleware import billing_middleware
+from quick_reply_engine import QuickReplyEngine, ConversationStage
 
 # Configure logging
 from logging_config import setup_logging
@@ -48,6 +49,9 @@ manager = ConnectionManager()
 # Initialize RAG engine
 rag_engine = ProductionRAGEngine()
 
+# Initialize Quick Reply engine
+quick_reply_engine = QuickReplyEngine()
+
 # Include routers
 app.include_router(auth_router)
 app.include_router(agent_router)
@@ -69,6 +73,78 @@ async def startup_event():
 async def root():
     """Health check endpoint"""
     return {"status": "healthy", "service": "NETVEXA MVP", "version": "0.1.0"}
+
+
+@app.get("/api/quick-replies/{agent_id}")
+async def get_quick_replies(
+    agent_id: str,
+    conversation_id: Optional[str] = None,
+    stage: Optional[str] = None
+):
+    """Get intelligent quick replies for conversation"""
+    try:
+        # Get conversation history if conversation_id provided
+        conversation_history = []
+        if conversation_id:
+            async for db in get_db():
+                from sqlalchemy import select, and_
+                result = await db.execute(
+                    select(DBMessage)
+                    .where(DBMessage.conversation_id == conversation_id)
+                    .order_by(DBMessage.timestamp)
+                    .limit(10)  # Last 10 messages
+                )
+                messages = result.scalars().all()
+                conversation_history = [
+                    {
+                        "sender": msg.sender,
+                        "content": msg.content,
+                        "timestamp": msg.timestamp.isoformat()
+                    }
+                    for msg in messages
+                ]
+                break
+        
+        # User context (basic for now)
+        user_context = {
+            "is_new_user": len(conversation_history) == 0,
+            "source": "website",
+            "previous_conversations": 0
+        }
+        
+        # Convert stage string to enum if provided
+        conversation_stage = None
+        if stage:
+            try:
+                conversation_stage = ConversationStage(stage)
+            except ValueError:
+                pass
+        
+        # Generate quick replies
+        quick_replies = quick_reply_engine.generate_quick_replies(
+            conversation_history=conversation_history,
+            user_context=user_context,
+            stage=conversation_stage
+        )
+        
+        return {
+            "quick_replies": quick_replies,
+            "stage": conversation_stage.value if conversation_stage else "unknown",
+            "context": user_context
+        }
+        
+    except Exception as e:
+        logger.error(f"Error generating quick replies: {e}")
+        # Fallback to basic replies
+        return {
+            "quick_replies": [
+                {"text": "Tell me more", "payload": "tell_more"},
+                {"text": "Get pricing", "payload": "pricing_info"},
+                {"text": "Contact sales", "payload": "contact_sales"}
+            ],
+            "stage": "fallback",
+            "context": {}
+        }
 
 @app.websocket("/ws/{agent_id}")
 async def websocket_endpoint(websocket: WebSocket, agent_id: str):

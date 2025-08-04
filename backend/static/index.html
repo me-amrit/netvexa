@@ -79,6 +79,14 @@
             color: #1f2937;
         }
         
+        .message.agent .message-content {
+            color: #1f2937 !important;
+        }
+        
+        .message.agent .message-content * {
+            color: #1f2937 !important;
+        }
+        
         .message-time {
             font-size: 12px;
             opacity: 0.7;
@@ -389,11 +397,27 @@
         });
         
         // Handle rich message interactions
-        richMessageRenderer.on('postback', (data) => {
+        richMessageRenderer.on('postback', async (data) => {
             console.log('Postback received:', data);
             
+            // Process the postback payload to determine user message
+            let userMessage = data.payload || 'Button clicked';
+            
+            // Map common payloads to more natural user messages
+            const payloadMessages = {
+                'pricing_info': 'I want to see your pricing',
+                'contact_sales': 'I want to talk to sales',
+                'product_info': 'Tell me more about NETVEXA',
+                'request_demo': 'I want to see a demo',
+                'view_pricing': 'Show me pricing options',
+                'learn_more': 'I want to learn more'
+            };
+            
+            if (payloadMessages[data.payload]) {
+                userMessage = payloadMessages[data.payload];
+            }
+            
             // Send the postback as a user message
-            const userMessage = data.payload || 'Button clicked';
             addMessage(userMessage, 'user');
             
             // Send postback to server via WebSocket
@@ -430,6 +454,7 @@
             
             ws.onmessage = (event) => {
                 const data = JSON.parse(event.data);
+                console.log('Received WebSocket message:', data);
                 
                 if (data.type === 'message') {
                     hideTypingIndicator();
@@ -484,6 +509,7 @@
         
         // Add message to chat
         function addMessage(content, sender) {
+            console.log('Adding message:', { content, sender, type: typeof content });
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${sender}`;
             
@@ -543,28 +569,48 @@
             }
         });
         
-        // Show welcome message
-        function showWelcomeMessage() {
-            const welcomeMessage = {
-                type: 'rich_message',
-                version: '1.0',
-                content: [
-                    {
-                        type: 'text',
-                        text: 'Welcome! I\'m your **NETVEXA assistant**. How can I help you today?'
-                    },
-                    {
-                        type: 'quick_replies',
-                        text: 'Here are some things I can help with:',
-                        replies: [
-                            { text: '💰 View Pricing', payload: 'view_pricing' },
-                            { text: '📞 Contact Sales', payload: 'contact_sales' },
-                            { text: '📚 Learn More', payload: 'learn_more' }
-                        ]
-                    }
-                ]
-            };
-            addMessage(welcomeMessage, 'agent');
+        // Show welcome message with dynamic quick replies
+        async function showWelcomeMessage() {
+            try {
+                // Get intelligent quick replies from backend
+                const response = await fetch(`${API_URL}/api/quick-replies/${agentId}?conversation_id=${conversationId}`);
+                const data = await response.json();
+                
+                const welcomeMessage = {
+                    type: 'rich_message',
+                    version: '1.0',
+                    content: [
+                        {
+                            type: 'text',
+                            text: 'Hi! I\'m your **NETVEXA assistant**. How can I help you today?'
+                        },
+                        {
+                            type: 'quick_replies',
+                            text: 'Quick options:',
+                            replies: data.quick_replies || [
+                                { text: 'View Pricing', payload: 'pricing_info' },
+                                { text: 'Contact Sales', payload: 'contact_sales' },
+                                { text: 'Learn More', payload: 'product_info' }
+                            ]
+                        }
+                    ]
+                };
+                addMessage(welcomeMessage, 'agent');
+            } catch (error) {
+                console.error('Error loading quick replies:', error);
+                // Fallback to basic message
+                const fallbackMessage = {
+                    type: 'rich_message',
+                    version: '1.0',
+                    content: [
+                        {
+                            type: 'text',
+                            text: 'Hi! I\'m your **NETVEXA assistant**. How can I help you today?'
+                        }
+                    ]
+                };
+                addMessage(fallbackMessage, 'agent');
+            }
         }
         
         // Initialize connection
