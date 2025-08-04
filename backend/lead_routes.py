@@ -12,7 +12,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 import logging
 
-from database import get_db, User, Agent
+from database import get_db, User, Agent, Conversation
 from auth import get_current_user
 from lead_models import Lead, HandoffRequest, LeadForm, LeadStatus, LeadSource, HandoffStatus
 from email_service import send_lead_notification_email, send_handoff_notification_email
@@ -127,7 +127,16 @@ async def create_lead(
             lead = existing
         else:
             # Create new lead
-            lead = Lead(**lead_data.dict())
+            lead_dict = lead_data.dict()
+            # Set conversation_id to None if the conversation doesn't exist
+            if lead_dict.get('conversation_id'):
+                conv_exists = await db.execute(
+                    select(1).where(Conversation.id == lead_dict['conversation_id'])
+                )
+                if not conv_exists.scalar():
+                    lead_dict['conversation_id'] = None
+            
+            lead = Lead(**lead_dict)
             db.add(lead)
         
         await db.commit()
