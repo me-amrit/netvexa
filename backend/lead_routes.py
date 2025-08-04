@@ -12,10 +12,9 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 import logging
 
-from database import get_db
+from database import get_db, User, Agent
 from auth import get_current_user
 from lead_models import Lead, HandoffRequest, LeadForm, LeadStatus, LeadSource, HandoffStatus
-from models import User
 from email_service import send_lead_notification_email, send_handoff_notification_email
 
 logger = logging.getLogger(__name__)
@@ -135,7 +134,6 @@ async def create_lead(
         await db.refresh(lead)
         
         # Get agent owner's email for notification
-        from database import Agent
         agent = await db.get(Agent, lead.agent_id)
         if agent:
             user = await db.get(User, agent.user_id)
@@ -163,7 +161,6 @@ async def get_leads(
         query = select(Lead)
         
         # Filter by user's agents
-        from database import Agent
         user_agents = await db.execute(
             select(Agent.id).where(Agent.user_id == current_user.id)
         )
@@ -200,7 +197,6 @@ async def get_lead(
             raise HTTPException(status_code=404, detail="Lead not found")
         
         # Verify user owns the agent
-        from database import Agent
         agent = await db.get(Agent, lead.agent_id)
         if not agent or agent.user_id != current_user.id:
             raise HTTPException(status_code=403, detail="Access denied")
@@ -227,7 +223,6 @@ async def update_lead(
             raise HTTPException(status_code=404, detail="Lead not found")
         
         # Verify user owns the agent
-        from database import Agent
         agent = await db.get(Agent, lead.agent_id)
         if not agent or agent.user_id != current_user.id:
             raise HTTPException(status_code=403, detail="Access denied")
@@ -272,7 +267,6 @@ async def create_handoff_request(
         await db.refresh(handoff)
         
         # Get lead and user email for notification
-        from database import Agent
         agent = await db.get(Agent, handoff.agent_id)
         if agent:
             user = await db.get(User, agent.user_id)
@@ -296,7 +290,6 @@ async def get_pending_handoffs(
     """Get pending handoff requests for user's agents"""
     try:
         # Get user's agents
-        from database import Agent
         user_agents = await db.execute(
             select(Agent.id).where(Agent.user_id == current_user.id)
         )
@@ -332,7 +325,6 @@ async def create_lead_form(
     """Create or update lead capture form for an agent"""
     try:
         # Verify user owns the agent
-        from database import Agent
         agent = await db.get(Agent, agent_id)
         if not agent or agent.user_id != current_user.id:
             raise HTTPException(status_code=403, detail="Access denied")
@@ -421,7 +413,6 @@ async def get_lead_analytics(
         start_date = datetime.utcnow() - timedelta(days=days)
         
         # Get user's agents
-        from database import Agent
         user_agents = await db.execute(
             select(Agent.id).where(Agent.user_id == current_user.id)
         )
