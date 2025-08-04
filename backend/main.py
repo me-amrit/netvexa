@@ -240,16 +240,21 @@ async def websocket_endpoint(websocket: WebSocket, agent_id: str):
             if user_id:
                 async for db in get_db():
                     await BillingService.track_usage(
-                        user_id, "message", 1, db
+                        user_id, "message", db, 1
                     )
                     break
             
             # Store agent response in database
             async for db in get_db():
+                # Handle rich content - serialize to JSON string for storage
+                content_to_store = response.content
+                if isinstance(response.content, dict):
+                    content_to_store = json.dumps(response.content)
+                
                 agent_message = DBMessage(
                     conversation_id=conversation_id,
                     sender="agent",
-                    content=response.content,
+                    content=content_to_store,
                     timestamp=datetime.utcnow()
                 )
                 db.add(agent_message)

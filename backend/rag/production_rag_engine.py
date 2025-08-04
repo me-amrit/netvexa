@@ -24,6 +24,7 @@ from embedding_providers import EmbeddingProviderFactory, CachedEmbeddingProvide
 from .chunking_strategies import get_chunker, ChunkMetadata
 from .document_parsers import parse_document, ParsedDocument
 from .hybrid_search import HybridSearchEngine, ReRanker, SearchResult
+from rich_content_generator import RichContentGenerator
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +88,9 @@ class ProductionRAGEngine:
             use_bm25=True
         )
         self.reranker = ReRanker(use_cross_encoder=False)
+        
+        # Initialize rich content generator
+        self.rich_content_generator = RichContentGenerator()
         
         # Configuration
         self.chunk_size = settings.CHUNK_SIZE
@@ -358,6 +362,37 @@ class ProductionRAGEngine:
             # Generate response
             response_text = await self.llm_provider.complete(prompt)
             
+            # Generate rich content if appropriate
+            try:
+                # Convert conversation history to proper format
+                formatted_history = []
+                if conversation_history:
+                    for msg in conversation_history:
+                        formatted_history.append({
+                            'role': msg.get('role', 'user'),
+                            'content': msg.get('content', ''),
+                            'timestamp': msg.get('timestamp', datetime.now().isoformat())
+                        })
+                
+                # Generate rich content
+                rich_content = self.rich_content_generator.process_ai_response(
+                    user_message=message.content,
+                    ai_response=response_text,
+                    conversation_history=formatted_history
+                )
+                
+                # Use rich content if generated successfully
+                final_response = rich_content
+                
+            except Exception as e:
+                logger.warning(f"Failed to generate rich content, falling back to plain text: {e}")
+                # Fallback to plain text wrapped in rich message format
+                final_response = {
+                    "type": "rich_message", 
+                    "version": "1.0",
+                    "content": [{"type": "text", "text": response_text}]
+                }
+            
             # Create response metadata
             metadata = {
                 'agent_id': agent_id,
@@ -366,7 +401,8 @@ class ProductionRAGEngine:
                 'search_method': 'hybrid',
                 'used_reranking': True,
                 'context_length': len(context),
-                'source_ids': [r.document_id for r in search_results[:3]]
+                'source_ids': [r.document_id for r in search_results[:3]],
+                'rich_content_generated': True
             }
             
             # Store conversation in cache
@@ -376,7 +412,7 @@ class ProductionRAGEngine:
                 )
             
             return ChatResponse(
-                content=response_text,
+                content=final_response,  # Now returns rich content object
                 timestamp=datetime.now(),
                 metadata=metadata
             )

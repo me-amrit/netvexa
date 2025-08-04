@@ -1,6 +1,6 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List, Any, Union
 from enum import Enum
 
 class SenderType(str, Enum):
@@ -16,7 +16,7 @@ class ChatMessage(BaseModel):
     metadata: Optional[Dict[str, Any]] = None
 
 class ChatResponse(BaseModel):
-    content: str
+    content: Union[str, Dict[str, Any]] = Field(..., description="Response content - can be plain text or rich message object")
     timestamp: datetime = datetime.now()
     suggestions: Optional[List[str]] = None
     metadata: Optional[Dict[str, Any]] = None
